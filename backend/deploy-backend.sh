@@ -1,6 +1,5 @@
 #!/bin/bash
-# 进入worker目录
-cd worker
 
-# 部署Worker
+# Deploy Worker from the backend directory (not worker)
+cd $(dirname "$0")
 npx wrangler deploy 
