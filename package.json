@@ -22,5 +22,8 @@
     "hono"
   ],
   "author": "",
-  "license": "ISC"
-} 
+  "license": "ISC",
+  "dependencies": {
+    "hono": "^4.7.11"
+  }
+}
