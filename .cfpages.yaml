@@ -1,0 +1,17 @@
+build:
+  command: npm run build:pages
+  output_directory: dist
+  root_directory: .
+  base_directory: .
+  build_root_directory: .
+  environment:
+    NODE_VERSION: 22
+  preview:
+    continue_on_fail: true
+
+routes:
+  - pattern: /assets/*
+    target: file
+  - pattern: /*
+    target: /index.html
+    status: 200 

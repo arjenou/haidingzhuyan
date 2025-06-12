@@ -1,0 +1,72 @@
+# 部署指南
+
+本项目分为前端和后端两部分，需要分别部署。
+
+## 前端部署（Cloudflare Pages）
+
+前端使用Vite构建，并部署到Cloudflare Pages。
+
+### 通过Cloudflare控制台部署
+
+1. 在Cloudflare控制台中创建一个新的Pages项目
+2. 连接您的Git仓库
+3. 配置构建设置：
+   - 构建命令：`npm run build:pages`
+   - 构建输出目录：`dist`
+   - 环境变量：可根据需要添加
+
+### 关于 `build:pages` 命令
+
+这个命令会：
+1. 编译TypeScript
+2. 构建前端资源
+3. 复制特殊的`pages-wrangler.toml`到`wrangler.toml`，以防止Pages自动尝试部署Worker
+
+## 后端部署（Cloudflare Workers）
+
+后端使用Hono框架，并部署到Cloudflare Workers。
+
+### 手动部署
+
+```bash
+cd worker
+npx wrangler deploy
+```
+
+### 使用部署脚本
+
+```bash
+npm run deploy:backend
+```
+
+## API URL配置
+
+前端的API URL配置在`vite.config.ts`文件中：
+
+```typescript
+define: {
+  'import.meta.env.VITE_API_BASE_URL': JSON.stringify('https://xinhangdao-api.your-account.workers.dev/api')
+}
+```
+
+部署后端后，请将此URL更新为您的实际Worker URL。
+
+## 完整部署流程
+
+1. 部署后端Worker
+2. 获取Worker的URL
+3. 更新`vite.config.ts`中的API URL
+4. 部署前端到Pages
+
+## 本地开发
+
+前端开发：
+```bash
+npm run dev
+```
+
+后端开发：
+```bash
+cd worker
+npm run dev
+``` 
