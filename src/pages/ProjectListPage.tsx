@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPosterDownloadUrl } from '../services/posterService';
 import PosterUpload from '../components/PosterUpload';
@@ -12,7 +12,7 @@ interface Project {
 }
 
 const ProjectListPage: React.FC = () => {
-  const { version, subject } = useParams<{ version: string; subject: string }>();
+  const { version } = useParams<{ version: string; subject: string }>();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showPoster, setShowPoster] = useState(false);
