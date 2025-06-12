@@ -6,8 +6,10 @@ build:
   build_root_directory: .
   environment:
     NODE_VERSION: 22
-  preview:
-    continue_on_fail: true
+
+# 自定义部署命令
+deploy:
+  command: ./cloudflare-deploy.sh
 
 routes:
   - pattern: /assets/*

@@ -4,6 +4,10 @@
 name = "xinhangdao-pages"
 compatibility_date = "2023-12-01"
 
+# 资产目录配置，告诉Wrangler在哪里找到静态资产
+[assets]
+directory = "./dist"
+
 # 不包含任何主要入口点
 # 不包含任何R2配置
 # 不包含任何环境变量 

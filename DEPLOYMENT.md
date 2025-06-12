@@ -13,7 +13,15 @@
 3. 配置构建设置：
    - 构建命令：`npm run build:pages`
    - 构建输出目录：`dist`
+   - **重要**：部署命令应设置为：`./cloudflare-deploy.sh`，或者完全留空
    - 环境变量：可根据需要添加
+
+### 关于配置文件
+
+项目包含以下配置文件：
+- `.cfpages.yaml`：Cloudflare Pages配置文件
+- `pages-wrangler.toml`：用于Pages环境的特殊wrangler配置，防止Worker部署
+- `cloudflare-deploy.sh`：一个空的部署脚本，避免Pages尝试部署Worker
 
 ### 关于 `build:pages` 命令
 
@@ -21,10 +29,11 @@
 1. 编译TypeScript
 2. 构建前端资源
 3. 复制特殊的`pages-wrangler.toml`到`wrangler.toml`，以防止Pages自动尝试部署Worker
+4. 创建一个标记文件，表明构建已完成
 
 ## 后端部署（Cloudflare Workers）
 
-后端使用Hono框架，并部署到Cloudflare Workers。
+后端使用Hono框架，并部署到Cloudflare Workers。必须单独部署。
 
 ### 手动部署
 
@@ -69,4 +78,14 @@ npm run dev
 ```bash
 cd worker
 npm run dev
-``` 
+```
+
+## 常见问题排查
+
+1. **Pages部署错误："Missing entry-point to Worker script"**：
+   - 确保您的部署命令设置为`./cloudflare-deploy.sh`或留空
+   - 确保构建命令是`npm run build:pages`而不是简单的`npm run build`
+
+2. **API连接错误**：
+   - 检查`vite.config.ts`中的API URL是否正确
+   - 确保Worker已正确部署并获得了正确的URL 
