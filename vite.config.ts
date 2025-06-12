@@ -5,6 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   define: {
-    'import.meta.env.VITE_API_BASE_URL': JSON.stringify('https://xinhangdao-api.your-account.workers.dev/api')
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify('https://xinhangdao-api.wangyunjie1101.workers.dev')
   }
 })
