@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:frontend": "./deploy-frontend.sh",
+    "deploy:backend": "./deploy-backend.sh",
+    "deploy:all": "npm run deploy:frontend && npm run deploy:backend"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
