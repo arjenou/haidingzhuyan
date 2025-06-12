@@ -1,23 +1,6 @@
-# 这是一个专用于Cloudflare Pages的配置文件
-# 它会替换原始的wrangler.toml，以防止Pages构建时尝试部署Worker
-
+# Pages配置
 name = "xinhangdao"
 compatibility_date = "2023-12-01"
 
-# Pages配置
-pages_build_output_dir = "dist"
-route = ""
-routes = []
-main = ""
-workers_dev = true
-
-# 资产目录配置，告诉Wrangler在哪里找到静态资产
-[assets]
-directory = "./dist"
-
-# 不包含任何主要入口点
-# 不包含任何R2配置
-# 不包含任何环境变量 
-
-[site]
-bucket = "./dist" 
+# Pages构建输出目录
+pages_build_output_dir = "dist" 

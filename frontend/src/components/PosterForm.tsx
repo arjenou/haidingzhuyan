@@ -90,13 +90,18 @@ const PosterForm: React.FC<PosterFormProps> = ({
           });
         }, 300);
         
-        // 上传图片
-        const uploadResult = await uploadPoster(posterFile);
-        imageKey = uploadResult.key;
-        imageUrl = uploadResult.url;
-        
-        clearInterval(progressInterval);
-        setUploadProgress(100);
+        try {
+          // 上传图片
+          const uploadResult = await uploadPoster(posterFile);
+          imageKey = uploadResult.key;
+          imageUrl = uploadResult.url;
+        } catch (uploadError) {
+          console.error('图片上传错误:', uploadError);
+          throw new Error(`图片上传失败: ${uploadError instanceof Error ? uploadError.message : '未知错误'}`);
+        } finally {
+          clearInterval(progressInterval);
+          setUploadProgress(100);
+        }
       }
       
       // 准备表单数据
@@ -108,6 +113,8 @@ const PosterForm: React.FC<PosterFormProps> = ({
         imageKey,
         imageUrl
       };
+      
+      console.log('提交表单数据:', formData);
       
       // 提交表单
       await onSubmit(formData);

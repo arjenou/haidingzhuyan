@@ -2,6 +2,9 @@
 // 部署时手动更改此URL或使用环境变量
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787/api';
 
+// 调试日志
+console.log('API_BASE_URL:', API_BASE_URL);
+
 export interface PosterMetadata {
   id: string;
   title: string;
@@ -57,21 +60,56 @@ export const getPosterMetadata = async (id: string): Promise<PosterMetadata> => 
  * 创建海报元数据
  */
 export const createPosterMetadata = async (input: PosterMetadataInput): Promise<PosterMetadata> => {
-  const response = await fetch(`${API_BASE_URL}/poster-metadata`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(input),
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || '创建海报元数据失败');
+  try {
+    // 安全处理输入数据，确保没有特殊字符问题
+    const cleanInput = {
+      ...input,
+      title: input.title.trim(),
+      description: input.description ? input.description.trim() : '',
+      category: input.category.trim(),
+      targetAudience: input.targetAudience || []
+    };
+    
+    // 调试日志
+    console.log('提交数据:', JSON.stringify(cleanInput));
+    
+    const response = await fetch(`${API_BASE_URL}/poster-metadata`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(cleanInput),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API错误响应:', errorText);
+      
+      let errorMessage = '创建海报元数据失败';
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || errorMessage;
+      } catch (e) {
+        console.error('解析错误响应失败:', e);
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    const responseText = await response.text();
+    console.log('API响应:', responseText);
+    
+    try {
+      const data = JSON.parse(responseText);
+      return data.poster;
+    } catch (e) {
+      console.error('解析响应JSON失败:', e);
+      throw new Error('解析服务器响应失败');
+    }
+  } catch (error) {
+    console.error('创建海报元数据错误:', error);
+    throw error;
   }
-
-  const data = await response.json();
-  return data.poster;
 };
 
 /**
