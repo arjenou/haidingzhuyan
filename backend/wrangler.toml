@@ -8,6 +8,11 @@ binding = 'R2_BUCKET'
 bucket_name = 'xinhangdao'
 preview_bucket_name = 'xinhangdao'
 
+# KV 命名空间配置
+[[kv_namespaces]]
+binding = "POSTER_METADATA"
+id = "ff7c311c77854f6cad6c1dbcd550e8fd"
+
 [site]
 bucket = "./public"
 

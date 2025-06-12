@@ -1,51 +1,101 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getPosterDownloadUrl } from '../services/posterService';
-import PosterUpload from '../components/PosterUpload';
+import { searchPosterMetadata, getAllCategories } from '../services/posterMetadataService';
+import type { PosterMetadata } from '../services/posterMetadataService';
 
 interface Project {
   id: string;
   title: string;
   description: string;
   imageUrl: string;
-  posterKey?: string; // R2 中海报的 key
+  posterKey?: string;
 }
 
 const ProjectListPage: React.FC = () => {
   const { version } = useParams<{ version: string; subject: string }>();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
   const [showPoster, setShowPoster] = useState(false);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [posters, setPosters] = useState<PosterMetadata[]>([]);
+
+  // 加载海报数据和分类
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        // 并行加载数据
+        const [categoriesData, postersData] = await Promise.all([
+          getAllCategories(),
+          searchPosterMetadata('', '')
+        ]);
+        
+        setCategories(categoriesData);
+        setPosters(postersData);
+      } catch (err) {
+        console.error('加载数据失败:', err);
+        setError('加载数据失败，请刷新页面重试');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+
+  // 搜索海报
+  useEffect(() => {
+    const searchPosters = async () => {
+      try {
+        setIsLoading(true);
+        const results = await searchPosterMetadata(searchQuery, selectedCategory);
+        setPosters(results);
+      } catch (err) {
+        console.error('搜索失败:', err);
+        setError('搜索失败，请重试');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    searchPosters();
+  }, [searchQuery, selectedCategory]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Searching for:', searchQuery);
   };
 
-  const handleShowPoster = async (project: Project) => {
-    setCurrentProject(project);
+  const handleShowPoster = async (poster: PosterMetadata) => {
+    setCurrentProject({
+      id: poster.id,
+      title: poster.title,
+      description: poster.description,
+      imageUrl: poster.imageUrl,
+      posterKey: poster.imageKey
+    });
     setShowPoster(true);
     setIsDownloading(true);
     setError(null);
     setPosterUrl(null);
 
     try {
-      // 如果项目有 posterKey，则从 R2 获取下载链接
-      if (project.posterKey) {
-        const { url } = await getPosterDownloadUrl(project.posterKey);
+      if (poster.imageKey) {
+        const { url } = await getPosterDownloadUrl(poster.imageKey);
         setPosterUrl(url);
       } else {
-        // 如果没有 posterKey，使用默认图片 URL
-        setPosterUrl(project.imageUrl);
+        setPosterUrl(poster.imageUrl);
       }
     } catch (err) {
       console.error('获取海报链接出错:', err);
       setError('获取海报链接失败，请稍后再试');
-      setPosterUrl(project.imageUrl); // 回退到项目图片
+      setPosterUrl(poster.imageUrl);
     } finally {
       setIsDownloading(false);
     }
@@ -56,45 +106,6 @@ const ProjectListPage: React.FC = () => {
       setShowPoster(false);
     }
   };
-
-  const handlePosterUploadSuccess = (project: Project) => (data: { url: string; key: string }) => {
-    // 更新项目的 posterKey
-    project.posterKey = data.key;
-    alert('海报上传成功！');
-  };
-
-  const handlePosterUploadError = (error: Error) => {
-    console.error('海报上传失败:', error);
-    alert(`上传失败: ${error.message}`);
-  };
-
-  // Mock projects data
-  const projects: Project[] = [
-    {
-      id: '1',
-      title: '从信息管理、信息系统到数据科学、人工智能和量子计算',
-      description: '— 信息管理、信息技术、信息安全、数据科学、人工智能、计算机、软件工程、数学、通信工程、等相关专业',
-      imageUrl: 'https://readdy.ai/api/search-image?query=Digital%20technology%20concept%20with%20blue%20abstract%20data%20visualization%2C%20cybersecurity%20theme%20with%20binary%20code%20patterns%2C%20modern%20tech%20background%20for%20information%20management%20and%20artificial%20intelligence&width=400&height=500&seq=1&orientation=portrait'
-    },
-    {
-      id: '2',
-      title: '系统工程在基础设施建筑中的价值探究',
-      description: '— 土木工程、建筑工程、系统工程、工业工程、工程管理、运筹学等相关专业',
-      imageUrl: 'https://readdy.ai/api/search-image?query=Urban%20construction%20site%20with%20modern%20buildings%2C%20engineering%20blueprints%20overlay%2C%20infrastructure%20development%20concept%20with%20clean%20minimalist%20background%20for%20system%20engineering%20value%20exploration&width=400&height=500&seq=2&orientation=portrait'
-    },
-    {
-      id: '3',
-      title: '可穿戴电子设备，物联网与无线通信',
-      description: '— 电子工程、机械工程、生物医学工程、物联网、计算机等相关专业',
-      imageUrl: 'https://readdy.ai/api/search-image?query=Wearable%20electronic%20devices%20with%20IoT%20connectivity%20visualization%2C%20wireless%20communication%20technology%20concept%20with%20circuit%20board%20patterns%2C%20futuristic%20tech%20background%20with%20blue%20digital%20elements&width=400&height=500&seq=3&orientation=portrait'
-    },
-    {
-      id: '4',
-      title: '设备直连通信(D2D)在异构蜂窝与小蜂窝网络中的应用',
-      description: '— 电子工程、通信工程、微电子学等相关专业',
-      imageUrl: 'https://readdy.ai/api/search-image?query=Device-to-device%20communication%20network%20visualization%20with%20honeycomb%20and%20mesh%20network%20patterns%2C%20wireless%20technology%20concept%20with%20blue%20digital%20elements%2C%20modern%20tech%20background%20for%20telecommunications&width=400&height=500&seq=4&orientation=portrait'
-    }
-  ];
 
   return (
     <>
@@ -124,48 +135,118 @@ const ProjectListPage: React.FC = () => {
               </button>
             </div>
           </form>
+          
+          {/* 管理入口，放在右侧 */}
+          <Link 
+            to="/admin" 
+            className="ml-4 text-sm text-gray-500 hover:text-gray-700"
+          >
+            管理
+          </Link>
+        </div>
+        
+        {/* 分类筛选 */}
+        <div className="max-w-4xl mx-auto mt-3 flex gap-2 overflow-x-auto pb-2">
+          <button
+            onClick={() => setSelectedCategory('')}
+            className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
+              selectedCategory === '' 
+                ? 'bg-amber-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            全部
+          </button>
+          
+          {categories.map(category => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
+                selectedCategory === category 
+                  ? 'bg-amber-600 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {category}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* 内容区域 */}
       <div className="max-w-4xl mx-auto py-6 px-4">
-        {/* 项目卡片 */}
-        {projects.map((project) => (
-          <div key={project.id} className="mb-12 border-b pb-8 last:border-b-0 last:pb-0">
-            <div className="flex gap-4">
-              <div className="w-1/2">
-                <div className="relative overflow-hidden rounded-lg shadow-md">
-                  <img
-                    src={project.imageUrl}
-                    alt={project.title}
-                    className="w-full h-full object-cover object-top"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 to-transparent p-4">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleShowPoster(project)}
-                        className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-2 py-1 rounded cursor-pointer transition-colors flex items-center justify-center gap-1"
-                      >
-                        <span className="text-white text-xs">⚡</span>
-                        <span>查看海报</span>
-                      </button>
-                      
-                      <PosterUpload 
-                        onUploadSuccess={handlePosterUploadSuccess(project)}
-                        onUploadError={handlePosterUploadError}
-                        className="text-xs"
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <svg className="animate-spin h-8 w-8 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 text-red-600 p-4 rounded-md">
+            {error}
+          </div>
+        ) : posters.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            没有找到符合条件的海报
+          </div>
+        ) : (
+          <>
+            {/* 项目卡片 */}
+            {posters.map((poster) => (
+              <div key={poster.id} className="mb-12 border-b pb-8 last:border-b-0 last:pb-0">
+                <div className="flex gap-4">
+                  <div className="w-1/2">
+                    <div className="relative overflow-hidden rounded-lg shadow-md">
+                      <img
+                        src={poster.imageUrl}
+                        alt={poster.title}
+                        className="w-full h-full object-cover object-top"
                       />
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 to-transparent p-4">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleShowPoster(poster)}
+                            className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-2 py-1 rounded cursor-pointer transition-colors flex items-center justify-center gap-1"
+                          >
+                            <span className="text-white text-xs">⚡</span>
+                            <span>查看海报</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
+                  </div>
+                  <div className="w-1/2">
+                    <h2 className="text-lg font-bold text-gray-800 mb-2">{poster.title}</h2>
+                    <p className="text-sm text-gray-600 mb-4">{poster.description}</p>
+                    
+                    {/* 显示分类标签 */}
+                    <div className="mb-2">
+                      <span className="inline-block bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded">
+                        {poster.category}
+                      </span>
+                    </div>
+                    
+                    {/* 显示适合人群标签 */}
+                    {poster.targetAudience.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {poster.targetAudience.map((audience, index) => (
+                          <span 
+                            key={index}
+                            className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded"
+                          >
+                            {audience}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="w-1/2">
-                <h2 className="text-lg font-bold text-gray-800 mb-2">{project.title}</h2>
-                <p className="text-sm text-gray-600 mb-4">{project.description}</p>
-              </div>
-            </div>
-          </div>
-        ))}
+            ))}
+          </>
+        )}
       </div>
 
       {/* Poster Modal */}

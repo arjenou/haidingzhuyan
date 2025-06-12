@@ -10,4 +10,5 @@ export const config = {
 export interface Env {
   R2_BUCKET: R2Bucket;
   R2_ENDPOINT: string;
+  POSTER_METADATA: KVNamespace;
 } 
