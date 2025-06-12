@@ -1,0 +1,16 @@
+name = "xinhangdao-api"
+main = "src/index.ts"
+compatibility_date = "2023-12-01"
+
+# R2 存储桶配置
+[[r2_buckets]]
+binding = 'R2_BUCKET'
+bucket_name = 'xinhangdao'
+preview_bucket_name = 'xinhangdao'
+
+[site]
+bucket = "./public"
+
+# 配置环境变量
+[vars]
+R2_ENDPOINT = "https://2e9ce2c37b30771ddabc7503e02c4c3.r2.cloudflarestorage.com" 

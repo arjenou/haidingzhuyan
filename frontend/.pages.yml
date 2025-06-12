@@ -1,0 +1,12 @@
+build:
+  command: npm run build
+  environment:
+    NODE_VERSION: 22
+
+routes:
+  - pattern: /*
+    dest: /index.html
+    status: 200
+  - pattern: /assets/*
+    dest: /assets/$1
+    status: 200 

@@ -1,0 +1,13 @@
+{
+  "build": {
+    "command": "npm run build",
+    "directory": "dist",
+    "environment": {
+      "NODE_VERSION": "22"
+    }
+  },
+  "routes": [
+    { "pattern": "/assets/*", "dest": "/assets/$1" },
+    { "pattern": "/*", "dest": "/index.html" }
+  ]
+} 
