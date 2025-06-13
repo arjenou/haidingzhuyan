@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getPosterDownloadUrl } from '../services/posterService';
-import { searchPosterMetadata, getAllCategories } from '../services/posterMetadataService';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getPosterUrl } from '../services/posterService';
+import { searchPosterMetadata } from '../services/posterMetadataService';
 import type { PosterMetadata } from '../services/posterMetadataService';
 
 interface Project {
@@ -13,11 +13,10 @@ interface Project {
 }
 
 const ProjectListPage: React.FC = () => {
-  const { version } = useParams<{ version: string; subject: string }>();
+  const { subject } = useParams<{ subject: string }>();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState(subject || '');
   const [showPoster, setShowPoster] = useState(false);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
@@ -26,18 +25,19 @@ const ProjectListPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [posters, setPosters] = useState<PosterMetadata[]>([]);
 
-  // 加载海报数据和分类
+  // 监听 URL 参数变化
+  useEffect(() => {
+    if (subject) {
+      setSelectedCategory(subject);
+    }
+  }, [subject]);
+
+  // 加载海报数据
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        // 并行加载数据
-        const [categoriesData, postersData] = await Promise.all([
-          getAllCategories(),
-          searchPosterMetadata('', '')
-        ]);
-        
-        setCategories(categoriesData);
+        const postersData = await searchPosterMetadata('', selectedCategory);
         setPosters(postersData);
       } catch (err) {
         console.error('加载数据失败:', err);
@@ -46,12 +46,14 @@ const ProjectListPage: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     loadData();
-  }, []);
+  }, [selectedCategory]); // 添加 selectedCategory 为依赖，当分类变化时重新加载
 
   // 搜索海报
   useEffect(() => {
+    if (searchQuery === '') return; // 如果搜索词为空，不执行搜索（由上面的 loadData 负责）
+
     const searchPosters = async () => {
       try {
         setIsLoading(true);
@@ -64,12 +66,29 @@ const ProjectListPage: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     searchPosters();
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    // 当表单提交时触发搜索
+    if (searchQuery.trim()) {
+      const searchPosters = async () => {
+        try {
+          setIsLoading(true);
+          const results = await searchPosterMetadata(searchQuery, selectedCategory);
+          setPosters(results);
+        } catch (err) {
+          console.error('搜索失败:', err);
+          setError('搜索失败，请重试');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      searchPosters();
+    }
   };
 
   const handleShowPoster = async (poster: PosterMetadata) => {
@@ -87,7 +106,7 @@ const ProjectListPage: React.FC = () => {
 
     try {
       if (poster.imageKey) {
-        const { url } = await getPosterDownloadUrl(poster.imageKey);
+        const url = getPosterUrl(poster.imageKey);
         setPosterUrl(url);
       } else {
         setPosterUrl(poster.imageUrl);
@@ -113,7 +132,7 @@ const ProjectListPage: React.FC = () => {
       <div className="bg-white shadow-sm py-4 px-6 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <button
-            onClick={() => navigate(`/subjects/${version}`)}
+            onClick={() => navigate('/')}
             className="text-gray-600 hover:text-gray-800 mr-4"
           >
             <span className="text-xl">←</span>
@@ -135,42 +154,6 @@ const ProjectListPage: React.FC = () => {
               </button>
             </div>
           </form>
-          
-          {/* 管理入口，放在右侧 */}
-          <Link 
-            to="/admin" 
-            className="ml-4 text-sm text-gray-500 hover:text-gray-700"
-          >
-            管理
-          </Link>
-        </div>
-        
-        {/* 分类筛选 */}
-        <div className="max-w-4xl mx-auto mt-3 flex gap-2 overflow-x-auto pb-2">
-          <button
-            onClick={() => setSelectedCategory('')}
-            className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
-              selectedCategory === '' 
-                ? 'bg-amber-600 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            全部
-          </button>
-          
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
-                selectedCategory === category 
-                  ? 'bg-amber-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -196,43 +179,45 @@ const ProjectListPage: React.FC = () => {
             {/* 项目卡片 */}
             {posters.map((poster) => (
               <div key={poster.id} className="mb-12 border-b pb-8 last:border-b-0 last:pb-0">
-                <div className="flex gap-4">
-                  <div className="w-1/2">
-                    <div className="relative overflow-hidden rounded-lg shadow-md">
+                <div className="flex flex-row gap-4 items-start">
+                  {/* 海报图片 - 固定宽度 */}
+                  <div className="min-w-[120px] w-[120px]">
+                    <div className="relative overflow-hidden rounded-lg shadow-md w-full aspect-[3/4] bg-white">
                       <img
                         src={poster.imageUrl}
                         alt={poster.title}
-                        className="w-full h-full object-cover object-top"
+                        className="w-full h-full object-contain"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 to-transparent p-4">
-                        <div className="flex space-x-2">
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 to-transparent p-2">
+                        <div className="flex justify-center">
                           <button
                             onClick={() => handleShowPoster(poster)}
                             className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-2 py-1 rounded cursor-pointer transition-colors flex items-center justify-center gap-1"
                           >
                             <span className="text-white text-xs">⚡</span>
-                            <span>查看海报</span>
+                            <span>查看</span>
                           </button>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="w-1/2">
-                    <h2 className="text-lg font-bold text-gray-800 mb-2">{poster.title}</h2>
-                    <p className="text-sm text-gray-600 mb-4">{poster.description}</p>
-                    
-                    {/* 显示分类标签 */}
+
+                  {/* 右侧内容区 */}
+                  <div className="flex-1 overflow-hidden flex flex-col">
+                    {/* 标题固定为两行高度 */}
+                    <div className="min-h-[3rem] mb-3">
+                      <h2 className="text-base font-bold text-gray-800 leading-tight line-clamp-2">{poster.title}</h2>
+                    </div>
                     <div className="mb-2">
-                      <span className="inline-block bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded">
+                      <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                         {poster.category}
                       </span>
                     </div>
-                    
-                    {/* 显示适合人群标签 */}
+                    {/* 适合人群标签 */}
                     {poster.targetAudience.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {poster.targetAudience.map((audience, index) => (
-                          <span 
+                          <span
                             key={index}
                             className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded"
                           >
@@ -251,7 +236,7 @@ const ProjectListPage: React.FC = () => {
 
       {/* Poster Modal */}
       {showPoster && currentProject && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
           onClick={handleCloseModal}
         >

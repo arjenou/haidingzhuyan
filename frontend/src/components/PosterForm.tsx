@@ -1,24 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { PosterMetadata, PosterMetadataInput } from '../services/posterMetadataService';
 import { uploadPoster } from '../services/posterService';
+import { CATEGORIES } from '../constants/categories';
 
 interface PosterFormProps {
   poster?: PosterMetadata;
   onSubmit: (data: PosterMetadataInput) => Promise<void>;
   onCancel: () => void;
-  categories: string[];
 }
 
 const PosterForm: React.FC<PosterFormProps> = ({ 
   poster, 
   onSubmit, 
-  onCancel,
-  categories
+  onCancel
 }) => {
   const [title, setTitle] = useState(poster?.title || '');
   const [description, setDescription] = useState(poster?.description || '');
   const [category, setCategory] = useState(poster?.category || '');
-  const [newCategory, setNewCategory] = useState('');
   const [targetAudience, setTargetAudience] = useState(poster?.targetAudience?.join(', ') || '');
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -27,13 +25,6 @@ const PosterForm: React.FC<PosterFormProps> = ({
 
   // 如果是编辑模式，显示预览图片
   const [previewUrl, setPreviewUrl] = useState<string | null>(poster?.imageUrl || null);
-
-  // 当选择了新分类时更新分类输入框
-  useEffect(() => {
-    if (category === '新分类') {
-      setNewCategory('');
-    }
-  }, [category]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -54,9 +45,7 @@ const PosterForm: React.FC<PosterFormProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!title.trim()) newErrors.title = '请输入标题';
-    if (category === '新分类' && !newCategory.trim()) {
-      newErrors.newCategory = '请输入新分类名称';
-    } else if (!category) {
+    if (!category) {
       newErrors.category = '请选择分类';
     }
 
@@ -108,7 +97,7 @@ const PosterForm: React.FC<PosterFormProps> = ({
       const formData: PosterMetadataInput = {
         title: title.trim(),
         description: description.trim(),
-        category: category === '新分类' ? newCategory.trim() : category,
+        category: category,
         targetAudience: targetAudience.split(',').map(tag => tag.trim()).filter(Boolean),
         imageKey,
         imageUrl
@@ -171,46 +160,37 @@ const PosterForm: React.FC<PosterFormProps> = ({
       </div>
       
       <div>
-        <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           分类 <span className="text-red-500">*</span>
         </label>
-        <select
-          id="category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
-            errors.category ? 'border-red-500' : 'border-gray-300'
-          }`}
-          disabled={isUploading}
-        >
-          <option value="">请选择分类</option>
-          {categories.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {CATEGORIES.map((cat) => (
+            <div 
+              key={cat.id}
+              onClick={() => setCategory(cat.id)}
+              className={`
+                flex items-center p-3 border rounded-md cursor-pointer transition-all
+                ${category === cat.id 
+                  ? 'border-green-500 bg-green-50 text-green-700' 
+                  : 'border-gray-300 hover:border-amber-300 hover:bg-amber-50'
+                }
+              `}
+            >
+              <div
+                className="flex items-center justify-center w-10 h-10 rounded text-white mr-3"
+                style={{ backgroundColor: cat.bgColor }}
+              >
+                {cat.icon}
+              </div>
+              <div>
+                <div className="font-medium">{cat.name}</div>
+                <div className="text-xs text-gray-500">{cat.englishName}</div>
+              </div>
+            </div>
           ))}
-          <option value="新分类">+ 新建分类</option>
-        </select>
+        </div>
         {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
       </div>
-      
-      {category === '新分类' && (
-        <div>
-          <label htmlFor="newCategory" className="block text-sm font-medium text-gray-700 mb-1">
-            新分类名称 <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="newCategory"
-            type="text"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
-              errors.newCategory ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="请输入新分类名称"
-            disabled={isUploading}
-          />
-          {errors.newCategory && <p className="mt-1 text-sm text-red-500">{errors.newCategory}</p>}
-        </div>
-      )}
       
       <div>
         <label htmlFor="targetAudience" className="block text-sm font-medium text-gray-700 mb-1">

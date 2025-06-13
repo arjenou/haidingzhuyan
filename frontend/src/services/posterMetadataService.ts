@@ -1,6 +1,7 @@
 // 可以根据需要替换为您的Cloudflare Workers URL
 // 部署时手动更改此URL或使用环境变量
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787/api';
+import { getCategoryIds } from '../constants/categories';
 
 // 调试日志
 console.log('API_BASE_URL:', API_BASE_URL);
@@ -149,17 +150,10 @@ export const deletePosterMetadata = async (id: string): Promise<void> => {
 
 /**
  * 获取所有分类
+ * 返回固定的分类列表
  */
 export const getAllCategories = async (): Promise<string[]> => {
-  const response = await fetch(`${API_BASE_URL}/categories`);
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || '获取分类失败');
-  }
-
-  const data = await response.json();
-  return data.categories;
+  return getCategoryIds();
 };
 
 /**
@@ -172,22 +166,24 @@ export const searchPosterMetadata = async (
 ): Promise<PosterMetadata[]> => {
   // 获取所有海报元数据
   const allPosters = await getAllPosterMetadata();
-  
-  // 如果没有搜索条件，返回所有（或按分类筛选）
-  if (!query && !category) {
-    return allPosters;
-  }
+  console.log('所有海报数量:', allPosters.length);
+  console.log('筛选条件 - 搜索词:', query, '分类:', category);
   
   // 按分类筛选
   let filteredPosters = allPosters;
-  if (category) {
-    filteredPosters = filteredPosters.filter(poster => 
-      poster.category.toLowerCase() === category.toLowerCase()
-    );
+  if (category && category.trim() !== '') {
+    filteredPosters = filteredPosters.filter(poster => {
+      const categoryMatch = poster.category.toLowerCase() === category.toLowerCase();
+      if (categoryMatch) {
+        console.log('匹配分类:', poster.title, poster.category);
+      }
+      return categoryMatch;
+    });
+    console.log('分类筛选后的海报数量:', filteredPosters.length);
   }
   
   // 如果没有搜索关键词，直接返回分类筛选结果
-  if (!query) {
+  if (!query || query.trim() === '') {
     return filteredPosters;
   }
   
@@ -195,7 +191,7 @@ export const searchPosterMetadata = async (
   const lowercaseQuery = query.toLowerCase();
   
   // 按标题、描述和目标受众搜索
-  return filteredPosters.filter(poster => {
+  const searchResults = filteredPosters.filter(poster => {
     const titleMatches = poster.title.toLowerCase().includes(lowercaseQuery);
     const descriptionMatches = poster.description.toLowerCase().includes(lowercaseQuery);
     const targetAudienceMatches = poster.targetAudience.some(audience => 
@@ -204,4 +200,7 @@ export const searchPosterMetadata = async (
     
     return titleMatches || descriptionMatches || targetAudienceMatches;
   });
+  
+  console.log('搜索后的海报数量:', searchResults.length);
+  return searchResults;
 }; 

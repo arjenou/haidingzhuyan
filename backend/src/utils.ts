@@ -32,9 +32,12 @@ export async function extractFileFromFormData(
 }
 
 /**
- * 生成预签名URL
- * 在Cloudflare Workers中直接访问R2对象即可，不需要预签名URL
+ * 生成R2对象的公共URL
+ * 使用Cloudflare Workers直接提供的R2公开访问URL
  */
 export function getObjectUrl(env: Env, key: string): string {
-  return `${env.R2_ENDPOINT}/${key}`;
+  // 这里使用Cloudflare Workers的URL模式
+  // 基础URL是Worker的URL，然后添加路径
+  const workerUrl = 'https://xinhangdao-api.wangyunjie1101.workers.dev';
+  return `${workerUrl}/api/get-poster-url/${key}`;
 } 

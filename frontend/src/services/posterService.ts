@@ -32,19 +32,13 @@ export const uploadPoster = async (file: File): Promise<{ url: string; key: stri
 };
 
 /**
- * 获取海报的预签名下载URL
+ * 获取海报URL
  * @param key 海报的key
- * @returns 包含签名URL的对象
+ * @returns 直接返回可以访问的URL字符串
  */
-export const getPosterDownloadUrl = async (key: string): Promise<{ url: string }> => {
-  const response = await fetch(`${API_BASE_URL}/get-poster-url/${encodeURIComponent(key)}`);
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || '获取下载链接失败');
-  }
-
-  return response.json();
+export const getPosterUrl = (key: string): string => {
+  // 直接返回正确的URL格式，不再需要API调用
+  return `${API_BASE_URL}/get-poster-url/${encodeURIComponent(key)}`;
 };
 
 /**
