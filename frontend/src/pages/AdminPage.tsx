@@ -199,8 +199,8 @@ const AdminPage: React.FC = () => {
           <div className="flex-1">
             <input
               type="text"
-              placeholder="搜索海报标题、描述、分类或标签..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              placeholder="搜索海报标题、描述、分类或标签"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-base"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -208,7 +208,7 @@ const AdminPage: React.FC = () => {
           
           <div>
             <select
-              className="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-base"
               value={selectedCategory}
               onChange={(e) => {
                 setSelectedCategory(e.target.value);

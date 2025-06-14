@@ -141,8 +141,8 @@ const ProjectListPage: React.FC = () => {
             <div className="relative">
               <input
                 type="text"
-                className="w-full border border-gray-300 rounded-md py-3 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                placeholder="请输入项目名称/综合专业/导师院校/一二级学科/标签等关键词"
+                className="w-full border border-gray-300 rounded-md py-3 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                placeholder="请输入项目名称/适合专业/项目关键词"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />

@@ -135,7 +135,7 @@ const PosterForm: React.FC<PosterFormProps> = ({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 ${
+          className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base ${
             errors.title ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="请输入海报标题"
@@ -152,7 +152,7 @@ const PosterForm: React.FC<PosterFormProps> = ({
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
           placeholder="请输入海报描述"
           rows={3}
           disabled={isUploading}
@@ -200,7 +200,7 @@ const PosterForm: React.FC<PosterFormProps> = ({
           type="text"
           value={targetAudience}
           onChange={(e) => setTargetAudience(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
           placeholder="请输入适合人群，多个标签用逗号分隔"
           disabled={isUploading}
         />
