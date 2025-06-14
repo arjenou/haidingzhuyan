@@ -4,29 +4,29 @@ export const CATEGORIES = [
     id: '工科',
     name: '工科',
     englishName: 'Engineering / Technology',
-    icon: '工',
-    bgColor: '#2D3748'
+    icon: 'fa-solid fa-gears',
+    bgGradient: 'bg-gradient-to-br from-blue-500 to-blue-700'
   },
   {
     id: '文科',
     name: '文科',
     englishName: 'Liberal Arts / Humanities',
-    icon: '文',
-    bgColor: '#2D3748'
+    icon: 'fa-solid fa-book-open',
+    bgGradient: 'bg-gradient-to-br from-pink-400 to-pink-600'
   },
   {
     id: '商科',
     name: '商科',
     englishName: 'Business / Commerce / Economics',
-    icon: '商',
-    bgColor: '#2D3748'
+    icon: 'fa-solid fa-chart-line',
+    bgGradient: 'bg-gradient-to-br from-yellow-400 to-yellow-600'
   },
   {
     id: '理科',
     name: '理科',
     englishName: 'Science / Natural Sciences',
-    icon: '理',
-    bgColor: '#2D3748'
+    icon: 'fa-solid fa-atom',
+    bgGradient: 'bg-gradient-to-br from-green-400 to-green-600'
   }
 ];
 
