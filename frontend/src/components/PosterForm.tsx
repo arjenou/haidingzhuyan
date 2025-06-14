@@ -177,10 +177,9 @@ const PosterForm: React.FC<PosterFormProps> = ({
               `}
             >
               <div
-                className="flex items-center justify-center w-10 h-10 rounded text-white mr-3"
-                style={{ backgroundColor: cat.bgColor }}
+                className={`flex items-center justify-center w-10 h-10 rounded text-white mr-3 text-xl ${cat.bgGradient}`}
               >
-                {cat.icon}
+                <i className={cat.icon}></i>
               </div>
               <div>
                 <div className="font-medium">{cat.name}</div>
