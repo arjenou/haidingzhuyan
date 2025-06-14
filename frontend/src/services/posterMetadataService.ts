@@ -30,16 +30,13 @@ export interface PosterMetadataInput {
 /**
  * 获取所有海报元数据
  */
-export const getAllPosterMetadata = async (): Promise<PosterMetadata[]> => {
-  const response = await fetch(`${API_BASE_URL}/poster-metadata`);
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || '获取海报元数据失败');
+export const getAllPosterMetadata = async (category?: string): Promise<PosterMetadata[]> => {
+  let url = `${API_BASE_URL}/poster-metadata`;
+  if (category) {
+    url += `?category=${encodeURIComponent(category)}`;
   }
-
-  const data = await response.json();
-  return data.posters;
+  const response = await fetch(url);
+  return response.json();
 };
 
 /**

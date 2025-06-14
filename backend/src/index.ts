@@ -167,16 +167,12 @@ app.delete('/api/delete-poster/:key', async (c) => {
 
 // 获取所有海报元数据
 app.get('/api/poster-metadata', async (c) => {
-  try {
-    const posters = await getAllPosterMetadata(c.env);
-    return c.json({ posters });
-  } catch (error) {
-    console.error('获取海报元数据错误:', error);
-    return c.json({ 
-      error: '获取海报元数据失败', 
-      details: error instanceof Error ? error.message : String(error) 
-    }, 500);
+  const category = c.req.query('category');
+  let posters = await getAllPosterMetadata(c.env);
+  if (category) {
+    posters = posters.filter(p => p.category === category);
   }
+  return c.json(posters);
 });
 
 // 获取单个海报元数据

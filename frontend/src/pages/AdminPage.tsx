@@ -44,12 +44,12 @@ const AdminPage: React.FC = () => {
   }, []);
 
   // 加载数据
-  const loadData = async () => {
+  const loadData = async (category?: string) => {
     setLoading(true);
     setError(null);
     
     try {
-      const postersData = await getAllPosterMetadata();
+      const postersData = await getAllPosterMetadata(category);
       setPosters(postersData);
     } catch (err) {
       console.error('加载数据失败:', err);
@@ -210,7 +210,10 @@ const AdminPage: React.FC = () => {
             <select
               className="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                loadData(e.target.value || undefined);
+              }}
             >
               <option value="">所有分类</option>
               {CATEGORIES.map(category => (
@@ -272,10 +275,10 @@ const AdminPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredPosters.map((poster) => (
+                {filteredPosters.map((poster, idx) => (
                   <tr key={poster.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {poster.id.substring(0, 8)}...
+                      {idx + 1}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="w-16 h-16 relative">
