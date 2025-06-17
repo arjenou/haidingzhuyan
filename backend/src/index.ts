@@ -13,10 +13,14 @@ import {
 } from './posterMetadata';
 
 // 创建Hono应用
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono();
 
-// 添加CORS中间件
-app.use('*', cors());
+// 添加CORS中间件，只允许 capstoneketi.com
+app.use('*', cors({
+  origin: 'https://capstoneketi.com',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+}));
 
 // 上传海报到R2
 app.post('/api/upload-poster', async (c) => {
@@ -35,7 +39,7 @@ app.post('/api/upload-poster', async (c) => {
     const fileBuffer = await file.arrayBuffer();
     
     // 上传到R2
-    await c.env.R2_BUCKET.put(fileName, fileBuffer, {
+    await ((c.env as unknown) as Env).R2_BUCKET.put(fileName, fileBuffer, {
       httpMetadata: {
         contentType: file.type,
       },
@@ -79,11 +83,11 @@ app.get('/api/get-poster-url/:key', async (c) => {
     }
     
     // 检查对象是否存在
-    let object = await c.env.R2_BUCKET.head(decodedKey);
+    let object = await ((c.env as unknown) as Env).R2_BUCKET.head(decodedKey);
     
     // 如果找不到，尝试使用原始key
     if (!object && decodedKey !== key) {
-      object = await c.env.R2_BUCKET.head(key);
+      object = await ((c.env as unknown) as Env).R2_BUCKET.head(key);
     }
     
     if (!object) {
@@ -95,7 +99,7 @@ app.get('/api/get-poster-url/:key', async (c) => {
     const finalKey = object ? (decodedKey !== key && !object ? key : decodedKey) : key;
     
     // 获取对象
-    const data = await c.env.R2_BUCKET.get(finalKey);
+    const data = await ((c.env as unknown) as Env).R2_BUCKET.get(finalKey);
     if (!data) {
       console.error('无法获取对象:', finalKey);
       return c.json({ error: '无法获取海报数据' }, 404);
@@ -123,7 +127,7 @@ app.get('/api/get-poster-url/:key', async (c) => {
 // 获取所有海报
 app.get('/api/list-posters', async (c) => {
   try {
-    const objects = await c.env.R2_BUCKET.list({
+    const objects = await ((c.env as unknown) as Env).R2_BUCKET.list({
       prefix: 'posters/'
     });
     
@@ -151,7 +155,7 @@ app.delete('/api/delete-poster/:key', async (c) => {
     const key = c.req.param('key');
     
     // 删除对象
-    await c.env.R2_BUCKET.delete(key);
+    await ((c.env as unknown) as Env).R2_BUCKET.delete(key);
     
     return c.json({ success: true, message: '海报已删除' });
   } catch (error) {
@@ -168,18 +172,19 @@ app.delete('/api/delete-poster/:key', async (c) => {
 // 获取所有海报元数据
 app.get('/api/poster-metadata', async (c) => {
   const category = c.req.query('category');
-  let posters = await getAllPosterMetadata(c.env);
+  const { posters, totalPages, currentPage } = await getAllPosterMetadata((c.env as unknown) as Env, 1);
+  let filtered = posters;
   if (category) {
-    posters = posters.filter(p => p.category === category);
+    filtered = posters.filter(p => p.category === category);
   }
-  return c.json(posters);
+  return c.json({ posters: filtered, totalPages, currentPage });
 });
 
 // 获取单个海报元数据
 app.get('/api/poster-metadata/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    const poster = await getPosterMetadata(c.env, id);
+    const poster = await getPosterMetadata((c.env as unknown) as Env, id);
     
     if (!poster) {
       return c.json({ error: '找不到指定的海报元数据' }, 404);
@@ -208,7 +213,7 @@ app.post('/api/poster-metadata', async (c) => {
       }, 400);
     }
     
-    const metadata = await createPosterMetadata(c.env, input);
+    const metadata = await createPosterMetadata((c.env as unknown) as Env, input);
     return c.json({ success: true, poster: metadata });
   } catch (error) {
     console.error('创建海报元数据错误:', error);
@@ -225,7 +230,7 @@ app.put('/api/poster-metadata/:id', async (c) => {
     const id = c.req.param('id');
     const input = await c.req.json() as Partial<PosterMetadataInput>;
     
-    const updated = await updatePosterMetadata(c.env, id, input);
+    const updated = await updatePosterMetadata((c.env as unknown) as Env, id, input);
     
     if (!updated) {
       return c.json({ error: '找不到指定的海报元数据' }, 404);
@@ -245,7 +250,7 @@ app.put('/api/poster-metadata/:id', async (c) => {
 app.delete('/api/poster-metadata/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    const success = await deletePosterMetadata(c.env, id);
+    const success = await deletePosterMetadata((c.env as unknown) as Env, id);
     
     if (!success) {
       return c.json({ error: '找不到指定的海报元数据' }, 404);
@@ -264,7 +269,7 @@ app.delete('/api/poster-metadata/:id', async (c) => {
 // 获取所有分类
 app.get('/api/categories', async (c) => {
   try {
-    const categories = await getAllCategories(c.env);
+    const categories = await getAllCategories((c.env as unknown) as Env);
     return c.json({ categories });
   } catch (error) {
     console.error('获取分类错误:', error);
@@ -278,7 +283,7 @@ app.get('/api/categories', async (c) => {
 // 修复已存在的海报URL（管理员使用）
 app.get('/api/fix-poster-urls', async (c) => {
   try {
-    const posters = await getAllPosterMetadata(c.env);
+    const { posters } = await getAllPosterMetadata((c.env as unknown) as Env, 1);
     const workerUrl = 'https://xinhangdao-api.wangyunjie1101.workers.dev';
     let fixedCount = 0;
     
@@ -293,7 +298,7 @@ app.get('/api/fix-poster-urls', async (c) => {
         const newUrl = `${workerUrl}/api/get-poster-url/${encodedKey}`;
         
         // 更新海报元数据
-        await updatePosterMetadata(c.env, poster.id, {
+        await updatePosterMetadata((c.env as unknown) as Env, poster.id, {
           imageUrl: newUrl
         });
         
@@ -321,7 +326,7 @@ app.get('/api/fix-specific-poster', async (c) => {
     const posterId = 'poster_1749735227978_4jzt2sq';
     
     // 获取海报数据
-    const poster = await getPosterMetadata(c.env, posterId);
+    const poster = await getPosterMetadata((c.env as unknown) as Env, posterId);
     if (!poster) {
       return c.json({ error: '找不到指定的海报' }, 404);
     }
@@ -338,7 +343,7 @@ app.get('/api/fix-specific-poster', async (c) => {
     console.log('编码Key:', encodedKey);
     
     // 更新海报元数据
-    await updatePosterMetadata(c.env, posterId, {
+    await updatePosterMetadata((c.env as unknown) as Env, posterId, {
       imageUrl: newUrl
     });
     

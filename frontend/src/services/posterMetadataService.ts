@@ -27,10 +27,17 @@ export interface PosterMetadataInput {
   imageUrl: string;
 }
 
+// 新增分页类型
+export interface PosterMetadataPage {
+  posters: PosterMetadata[];
+  totalPages: number;
+  currentPage: number;
+}
+
 /**
  * 获取所有海报元数据
  */
-export const getAllPosterMetadata = async (category?: string): Promise<PosterMetadata[]> => {
+export const getAllPosterMetadata = async (category?: string): Promise<PosterMetadataPage> => {
   let url = `${API_BASE_URL}/poster-metadata`;
   if (category) {
     url += `?category=${encodeURIComponent(category)}`;
@@ -162,7 +169,7 @@ export const searchPosterMetadata = async (
   category?: string
 ): Promise<PosterMetadata[]> => {
   // 获取所有海报元数据
-  const allPosters = await getAllPosterMetadata();
+  const { posters: allPosters } = await getAllPosterMetadata();
   console.log('所有海报数量:', allPosters.length);
   console.log('筛选条件 - 搜索词:', query, '分类:', category);
   

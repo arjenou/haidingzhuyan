@@ -49,7 +49,7 @@ const AdminPage: React.FC = () => {
     setError(null);
     
     try {
-      const postersData = await getAllPosterMetadata(category);
+      const { posters: postersData } = await getAllPosterMetadata(category);
       setPosters(postersData);
     } catch (err) {
       console.error('加载数据失败:', err);
