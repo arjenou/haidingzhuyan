@@ -14,8 +14,10 @@
     "deploy:all": "npm run deploy:frontend && npm run deploy:backend"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.0.0",
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@tailwindcss/line-clamp": "^0.4.4",
+    "antd": "^5.26.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2"

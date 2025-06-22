@@ -1,6 +1,6 @@
 // 可以根据需要替换为您的Cloudflare Workers URL
 // 部署时手动更改此URL或使用环境变量
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.capstoneketi.com/api';
 import { getCategoryIds } from '../constants/categories';
 
 // 调试日志
@@ -35,15 +35,76 @@ export interface PosterMetadataPage {
 }
 
 /**
+ * 根据分类获取海报元数据（分页）
+ */
+export const getPosterMetadataByCategory = async (
+  category: string, 
+  page: number = 1
+): Promise<{
+  posters: PosterMetadata[];
+  totalPages: number;
+  currentPage: number;
+  hasMore: boolean;
+}> => {
+  const categoryId = getCategoryId(category);
+  const url = `${API_BASE_URL}/exported-data/${encodeURIComponent(categoryId)}/${page}`;
+  
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || '获取分类海报失败');
+  }
+
+  const data = await response.json();
+
+  // 后端返回的数据结构是 { success: true, posters: [...] }
+  // 我们需要从元数据获取总页数
+  const metadata = await getExportMetadata();
+  const totalPages = metadata.categories[categoryId]?.pages || 0;
+
+  return {
+    posters: data.posters || [],
+    totalPages,
+    currentPage: page,
+    hasMore: page < totalPages,
+  };
+};
+
+const categoryMapping: { [key: string]: string } = {
+  '工科': 'gongke',
+  '理科': 'like',
+  '文科': 'wenke',
+  '商科': 'shangke',
+};
+
+function getCategoryId(categoryName: string): string {
+  return categoryMapping[categoryName] || categoryName;
+}
+
+/**
  * 获取所有海报元数据
  */
-export const getAllPosterMetadata = async (category?: string): Promise<PosterMetadataPage> => {
-  let url = `${API_BASE_URL}/poster-metadata`;
+export const getAllPosterMetadata = async (category?: string, page: number = 1): Promise<PosterMetadataPage> => {
+  let url = `${API_BASE_URL}/poster-metadata?page=${page}`;
+  if (category) {
+    url += `&category=${encodeURIComponent(category)}`;
+  }
+  const response = await fetch(url);
+  return response.json();
+};
+
+/**
+ * 获取所有海报元数据（不分页，用于无限滚动）
+ */
+export const getAllPosterMetadataForInfiniteScroll = async (category?: string): Promise<PosterMetadata[]> => {
+  let url = `${API_BASE_URL}/poster-metadata/all`;
   if (category) {
     url += `?category=${encodeURIComponent(category)}`;
   }
   const response = await fetch(url);
-  return response.json();
+  const data = await response.json();
+  return data.posters;
 };
 
 /**
@@ -59,6 +120,39 @@ export const getPosterMetadata = async (id: string): Promise<PosterMetadata> => 
 
   const data = await response.json();
   return data.poster;
+};
+
+export interface ExportMetadata {
+  exportTime: string;
+  totalPosters: number;
+  categories: {
+    [key: string]: {
+      count: number;
+      pages: number;
+    };
+  };
+  postersPerPage: number;
+  categoryMapping: {
+    [key: string]: string;
+  };
+}
+
+let metadataCache: ExportMetadata | null = null;
+
+export const getExportMetadata = async (): Promise<ExportMetadata> => {
+  if (metadataCache) {
+    return metadataCache;
+  }
+  const response = await fetch(`${API_BASE_URL}/exported-data/metadata`);
+  if (!response.ok) {
+    throw new Error('获取元数据失败');
+  }
+  const data = await response.json();
+  if (data.success) {
+    metadataCache = data.metadata;
+    return data.metadata;
+  }
+  throw new Error(data.message || '解析元数据失败');
 };
 
 /**

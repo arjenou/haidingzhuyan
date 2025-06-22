@@ -11,4 +11,6 @@ export interface Env {
   R2_BUCKET: R2Bucket;
   R2_ENDPOINT: string;
   POSTER_METADATA: KVNamespace;
+  POSTER_METADATA_PAGES: KVNamespace;
+  SEARCH_INDEX: KVNamespace;
 } 

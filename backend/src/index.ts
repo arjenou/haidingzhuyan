@@ -4,13 +4,28 @@ import { Env } from './config';
 import { extractFileFromFormData, generateUniqueFileName, getObjectUrl } from './utils';
 import { 
   PosterMetadataInput, 
+  PosterMetadata,
   createPosterMetadata, 
   deletePosterMetadata, 
   getAllCategories, 
   getAllPosterMetadata, 
   getPosterMetadata, 
-  updatePosterMetadata 
+  updatePosterMetadata, 
+  getAllPosterMetadataWithoutPagination,
+  getPosterMetadataByCategory,
+  updateCategoryData,
+  generateAndStoreSearchIndexes,
+  migrateImageUrls,
+  generateFrontendData
 } from './posterMetadata';
+import { autoRefactorDatabase } from './autoRefactorDatabase';
+import { 
+  exportCategorizedDataToKV, 
+  getExportedCategoryData, 
+  getExportMetadata, 
+  clearExportedData,
+  generateStaticJSONData 
+} from './exportCategorizedData';
 
 // 创建Hono应用
 const app = new Hono();
@@ -169,15 +184,52 @@ app.delete('/api/delete-poster/:key', async (c) => {
 
 // ========== 海报元数据 API ==========
 
+// 新的分页API端点
+app.get('/api/poster', async (c) => {
+  const category = c.req.query('category');
+  const page = parseInt(c.req.query('page') || '1', 10);
+  const searchQuery = c.req.query('q');
+  
+  if (!category) {
+    return c.json({ error: '缺少category参数' }, 400);
+  }
+  
+  try {
+    const result = await getPosterMetadataByCategory((c.env as unknown) as Env, category, page, searchQuery);
+    return c.json(result);
+  } catch (error) {
+    console.error('获取分类海报错误:', error);
+    return c.json({ 
+      error: '获取分类海报失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
 // 获取所有海报元数据
 app.get('/api/poster-metadata', async (c) => {
   const category = c.req.query('category');
-  const { posters, totalPages, currentPage } = await getAllPosterMetadata((c.env as unknown) as Env, 1);
+  const page = parseInt(c.req.query('page') || '1', 10);
+  
+  const { posters, totalPages, currentPage } = await getAllPosterMetadata((c.env as unknown) as Env, page);
   let filtered = posters;
   if (category) {
     filtered = posters.filter(p => p.category === category);
   }
   return c.json({ posters: filtered, totalPages, currentPage });
+});
+
+// 获取所有海报元数据（不分页，用于无限滚动）
+app.get('/api/poster-metadata/all', async (c) => {
+  const category = c.req.query('category');
+  
+  // 获取所有数据
+  const allPosters = await getAllPosterMetadataWithoutPagination((c.env as unknown) as Env);
+  let filtered = allPosters;
+  if (category) {
+    filtered = allPosters.filter((p: PosterMetadata) => p.category === category);
+  }
+  return c.json({ posters: filtered });
 });
 
 // 获取单个海报元数据
@@ -357,6 +409,200 @@ app.get('/api/fix-specific-poster', async (c) => {
     console.error('修复特定海报URL错误:', error);
     return c.json({ 
       error: '修复特定海报URL失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 获取搜索索引文件的代理API
+app.get('/api/search-index/:category', async (c) => {
+  const category = c.req.param('category');
+  const fileName = `search-indexes/${category}.json`;
+
+  try {
+    const object = await ((c.env as unknown) as Env).R2_BUCKET.get(fileName);
+
+    if (object === null) {
+      return c.json({ error: '找不到指定的搜索索引' }, 404);
+    }
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+    headers.set('Cache-Control', 'public, max-age=3600'); // 客户端缓存1小时
+
+    return new Response(object.body, {
+      headers,
+    });
+
+  } catch (error) {
+    console.error(`获取搜索索引失败: ${fileName}`, error);
+    return c.json({ 
+      error: '获取搜索索引失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 手动触发搜索索引生成
+app.post('/api/build-search-indexes', async (c) => {
+  try {
+    const results = await generateAndStoreSearchIndexes((c.env as unknown) as Env);
+    return c.json({ success: true, message: '搜索索引生成成功', details: results });
+  } catch (error) {
+    console.error('搜索索引生成错误:', error);
+    return c.json({ 
+      error: '搜索索引生成失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 触发数据库重构（管理员功能）
+app.post('/api/refactor-database', async (c) => {
+  try {
+    await autoRefactorDatabase((c.env as unknown) as Env);
+    return c.json({ success: true, message: '数据库重构完成' });
+  } catch (error) {
+    console.error('数据库重构错误:', error);
+    return c.json({ 
+      error: '数据库重构失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 触发图片URL迁移
+app.post('/api/admin/migrate-urls', async (c) => {
+  try {
+    const result = await migrateImageUrls((c.env as unknown) as Env);
+    return c.json({ success: true, ...result });
+  } catch (error) {
+    console.error('URL迁移任务失败:', error);
+    return c.json({ 
+      error: 'URL迁移任务失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 生成前端数据文件
+app.get('/api/admin/generate-frontend-data', async (c) => {
+  try {
+    const data = await generateFrontendData((c.env as unknown) as Env);
+    return c.json(data);
+  } catch (error) {
+    console.error('生成前端数据失败:', error);
+    return c.json({ 
+      error: '生成前端数据失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// ========== 分类分页导出 API ==========
+
+// 导出分类分页数据到KV
+app.post('/api/admin/export-categorized-data', async (c) => {
+  try {
+    const result = await exportCategorizedDataToKV((c.env as unknown) as Env);
+    return c.json({ 
+      success: true, 
+      message: '分类分页数据导出成功',
+      ...result
+    });
+  } catch (error) {
+    console.error('导出分类分页数据失败:', error);
+    return c.json({ 
+      error: '导出分类分页数据失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 获取导出的分类分页数据
+app.get('/api/exported-data/:category/:page', async (c) => {
+  try {
+    const category = c.req.param('category');
+    const page = parseInt(c.req.param('page'), 10);
+    
+    if (isNaN(page) || page < 1) {
+      return c.json({ error: '无效的页码' }, 400);
+    }
+    
+    const data = await getExportedCategoryData((c.env as unknown) as Env, category, page);
+    
+    if (!data) {
+      return c.json({ error: '找不到指定的数据' }, 404);
+    }
+    
+    return c.json({ 
+      success: true,
+      category,
+      page,
+      posters: data,
+      count: data.length
+    });
+  } catch (error) {
+    console.error('获取导出的分类数据失败:', error);
+    return c.json({ 
+      error: '获取导出的分类数据失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 获取导出元数据
+app.get('/api/exported-data/metadata', async (c) => {
+  try {
+    const metadata = await getExportMetadata((c.env as unknown) as Env);
+    
+    if (!metadata) {
+      return c.json({ error: '没有找到导出的数据' }, 404);
+    }
+    
+    return c.json({ 
+      success: true,
+      metadata
+    });
+  } catch (error) {
+    console.error('获取导出元数据失败:', error);
+    return c.json({ 
+      error: '获取导出元数据失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 清理导出的数据
+app.delete('/api/admin/exported-data', async (c) => {
+  try {
+    await clearExportedData((c.env as unknown) as Env);
+    return c.json({ 
+      success: true, 
+      message: '导出的数据已清理'
+    });
+  } catch (error) {
+    console.error('清理导出数据失败:', error);
+    return c.json({ 
+      error: '清理导出数据失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 生成静态JSON数据（用于前端直接使用）
+app.get('/api/admin/static-json-data', async (c) => {
+  try {
+    const data = await generateStaticJSONData((c.env as unknown) as Env);
+    return c.json({ 
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('生成静态JSON数据失败:', error);
+    return c.json({ 
+      error: '生成静态JSON数据失败', 
       details: error instanceof Error ? error.message : String(error) 
     }, 500);
   }

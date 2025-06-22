@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AdminLogin from '../components/AdminLogin';
 import PosterForm from '../components/PosterForm';
 import { isLoggedIn, logout } from '../services/authService';
 import type { PosterMetadata, PosterMetadataInput } from '../services/posterMetadataService';
 import { 
-  getAllPosterMetadata, 
+  getAllPosterMetadataForInfiniteScroll, 
   createPosterMetadata, 
   updatePosterMetadata, 
   deletePosterMetadata
@@ -19,6 +19,16 @@ const AdminPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   // 海报数据
   const [posters, setPosters] = useState<PosterMetadata[]>([]);
+  const [displayedPosters, setDisplayedPosters] = useState<PosterMetadata[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // 无限滚动配置
+  const ITEMS_PER_LOAD = 20; // 每次加载20个项目
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadingRef = useRef<HTMLDivElement>(null);
+  
   // 表单控制
   const [showForm, setShowForm] = useState(false);
   const [editingPoster, setEditingPoster] = useState<PosterMetadata | null>(null);
@@ -49,8 +59,11 @@ const AdminPage: React.FC = () => {
     setError(null);
     
     try {
-      const { posters: postersData } = await getAllPosterMetadata(category);
-      setPosters(postersData);
+      const allPosters = await getAllPosterMetadataForInfiniteScroll(category);
+      setPosters(allPosters);
+      setCurrentIndex(0);
+      setDisplayedPosters([]);
+      setHasMore(allPosters.length > 0);
     } catch (err) {
       console.error('加载数据失败:', err);
       setError('加载数据失败，请刷新页面重试');
@@ -58,6 +71,55 @@ const AdminPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // 加载更多数据
+  const loadMore = useCallback(() => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    
+    // 模拟异步加载
+    setTimeout(() => {
+      const nextIndex = currentIndex + ITEMS_PER_LOAD;
+      const newItems = posters.slice(currentIndex, nextIndex);
+      
+      setDisplayedPosters(prev => [...prev, ...newItems]);
+      setCurrentIndex(nextIndex);
+      setHasMore(nextIndex < posters.length);
+      setIsLoadingMore(false);
+    }, 300);
+  }, [currentIndex, posters, isLoadingMore, hasMore]);
+
+  // 设置无限滚动观察器
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observerRef.current = observer;
+
+    if (loadingRef.current) {
+      observer.observe(loadingRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loadMore, hasMore, isLoadingMore]);
+
+  // 初始加载数据
+  useEffect(() => {
+    if (posters.length > 0 && displayedPosters.length === 0) {
+      loadMore();
+    }
+  }, [posters, displayedPosters.length, loadMore]);
 
   // 处理登录成功
   const handleLoginSuccess = () => {
@@ -109,8 +171,8 @@ const AdminPage: React.FC = () => {
       setLoading(true);
       await deletePosterMetadata(deletingPoster.id);
       
-      // 更新列表
-      setPosters(posters.filter(p => p.id !== deletingPoster.id));
+      // 重新加载数据
+      await loadData(selectedCategory);
       setDeletingPoster(null);
     } catch (err) {
       console.error('删除失败:', err);
@@ -119,7 +181,6 @@ const AdminPage: React.FC = () => {
       setLoading(false);
     }
   };
-
 
   // 关闭海报详情
   const handleCloseViewPoster = () => {
@@ -148,7 +209,7 @@ const AdminPage: React.FC = () => {
   };
 
   // 筛选海报
-  const filteredPosters = posters.filter(poster => {
+  const filteredPosters = displayedPosters.filter(poster => {
     // 按分类筛选
     if (selectedCategory && poster.category !== selectedCategory) {
       return false;
@@ -317,6 +378,35 @@ const AdminPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        
+        {/* 无限滚动加载指示器 */}
+        {hasMore && (
+          <div ref={loadingRef} className="flex justify-center py-6">
+            {isLoadingMore ? (
+              <div className="flex items-center space-x-2">
+                <svg className="animate-spin h-5 w-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-gray-600">加载中...</span>
+              </div>
+            ) : (
+              <button
+                onClick={loadMore}
+                className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-500 transition-colors font-medium"
+              >
+                加载更多
+              </button>
+            )}
+          </div>
+        )}
+        
+        {/* 没有更多数据提示 */}
+        {!hasMore && displayedPosters.length > 0 && (
+          <div className="text-center py-6 text-gray-500">
+            <p>已显示所有内容</p>
           </div>
         )}
       </main>
