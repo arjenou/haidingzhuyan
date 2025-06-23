@@ -10,7 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787
 const categoryNameToKeyMap: { [key: string]: string } = {
   '工科': 'gongke',
   '文科': 'wenke',
-  '商科': 'shangke_business',
+  '商科': 'shangke',
   '理科': 'like',
 };
 
@@ -324,7 +324,7 @@ const ProjectListPage: React.FC = () => {
 
       {/* 海报弹窗 */}
       {showPoster && currentPoster && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 p-4"
           onClick={handleCloseModal}
         >
@@ -334,12 +334,12 @@ const ProjectListPage: React.FC = () => {
               alt={currentPoster.title} 
               className="block max-w-full max-h-full h-auto w-auto rounded-lg shadow-2xl"
             />
-            <button
-              onClick={() => setShowPoster(false)}
+              <button
+                onClick={() => setShowPoster(false)}
               className="absolute top-0 right-0 m-4 text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-75 transition-opacity z-10"
-            >
+              >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
+              </button>
           </div>
         </div>
       )}

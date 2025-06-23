@@ -433,7 +433,7 @@ function getCategoryKey(categoryName: string): string {
   const map: { [key: string]: string } = {
     '工科': 'gongke',
     '文科': 'wenke',
-    '商科': 'shangke_business',
+    '商科': 'shangke',
     '理科': 'like',
   };
   return map[categoryName] || categoryName.toLowerCase().replace(/\s+/g, '-');

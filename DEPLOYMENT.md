@@ -97,3 +97,5 @@ define: {
    
 3. **找不到根目录错误**：
    - 确保在Cloudflare Pages设置中指定了正确的根目录（`frontend`） 
+
+   (base) wang.yunjie@mf-3714-mm02:~/Desktop/LiuShi/xinHangdao/frontend|main⚡ ⇒  curl -X POST https://xinhangdao-api.wangyunjie1101.workers.dev/api/admin/export-categorized-data
