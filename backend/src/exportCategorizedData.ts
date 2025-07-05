@@ -28,6 +28,12 @@ interface PosterMetadata {
  * 获取分类的英文键名
  */
 function getCategoryKey(categoryName: string): string {
+  // 检查 categoryName 是否为 undefined 或 null
+  if (!categoryName || categoryName.trim() === '') {
+    console.warn('分类名称为空，跳过该记录');
+    return ''; // 返回空字符串，让调用方决定如何处理
+  }
+  
   return CATEGORY_MAPPING[categoryName as keyof typeof CATEGORY_MAPPING] || categoryName.toLowerCase();
 }
 
@@ -49,6 +55,12 @@ export async function exportCategorizedDataToKV(env: Env): Promise<{
   
   allPosters.forEach(poster => {
     const categoryKey = getCategoryKey(poster.category);
+    // 跳过没有分类的记录
+    if (!categoryKey) {
+      console.warn(`跳过没有分类的海报: ${poster.id} - ${poster.title}`);
+      return;
+    }
+    
     if (!postersByCategory[categoryKey]) {
       postersByCategory[categoryKey] = [];
     }
@@ -173,6 +185,12 @@ export async function generateStaticJSONData(env: Env): Promise<Record<string, R
   // 按分类分组
   allPosters.forEach(poster => {
     const categoryKey = getCategoryKey(poster.category);
+    // 跳过没有分类的记录
+    if (!categoryKey) {
+      console.warn(`跳过没有分类的海报: ${poster.id} - ${poster.title}`);
+      return;
+    }
+    
     if (!postersByCategory[categoryKey]) {
       postersByCategory[categoryKey] = [];
     }

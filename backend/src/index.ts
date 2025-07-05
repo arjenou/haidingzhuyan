@@ -458,6 +458,36 @@ app.post('/api/build-search-indexes', async (c) => {
   }
 });
 
+// 删除搜索索引文件
+app.delete('/api/admin/clear-search-indexes', async (c) => {
+  try {
+    const categories = ['gongke', 'wenke', 'shangke', 'like'];
+    let deletedCount = 0;
+    
+    for (const category of categories) {
+      const fileName = `search-indexes/${category}.json`;
+      try {
+        await ((c.env as unknown) as Env).R2_BUCKET.delete(fileName);
+        deletedCount++;
+        console.log(`已删除搜索索引文件: ${fileName}`);
+      } catch (e) {
+        console.log(`文件不存在或删除失败: ${fileName}`);
+      }
+    }
+    
+    return c.json({ 
+      success: true, 
+      message: `已删除 ${deletedCount} 个搜索索引文件`
+    });
+  } catch (error) {
+    console.error('删除搜索索引文件失败:', error);
+    return c.json({ 
+      error: '删除搜索索引文件失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
 // 触发数据库重构（管理员功能）
 app.post('/api/refactor-database', async (c) => {
   try {

@@ -13,14 +13,6 @@ preview_bucket_name = 'xinhangdao'
 binding = "POSTER_METADATA"
 id = "ff7c311c77854f6cad6c1dbcd550e8fd"
 
-[[kv_namespaces]]
-binding = "POSTER_METADATA_PAGES"
-id = "f8e6cbabeaaa47c1b4680834974ee234"
-
-[[kv_namespaces]]
-binding = "SEARCH_INDEX"
-id = "527608ab81c6470eaeb93165ecfc8c36"
-
 [site]
 bucket = "./public"
 

@@ -394,15 +394,18 @@ export async function generateAndStoreSearchIndexes(env: Env): Promise<Record<st
   for (const categoryKey in postersByCategory) {
     const posters = postersByCategory[categoryKey];
     
-    // 创建一个只包含搜索所需字段的简化列表
-    const searchIndex = posters.map(p => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      category: p.category,
-      targetAudience: p.targetAudience,
-      imageUrl: p.imageUrl, // 包含图片URL以便在搜索结果中显示
-    }));
+    // 创建一个只包含搜索所需字段的简化列表，并确保URL是正确的
+    const searchIndex = posters.map(p => {
+      const fixedPoster = fixPosterUrl(p);
+      return {
+        id: fixedPoster.id,
+        title: fixedPoster.title,
+        description: fixedPoster.description,
+        category: fixedPoster.category,
+        targetAudience: fixedPoster.targetAudience,
+        imageUrl: fixedPoster.imageUrl, // 包含修复后的图片URL以便在搜索结果中显示
+      };
+    });
 
     const fileName = `search-indexes/${categoryKey}.json`;
     const fileContent = JSON.stringify(searchIndex, null, 2);
@@ -414,13 +417,6 @@ export async function generateAndStoreSearchIndexes(env: Env): Promise<Record<st
         cacheControl: 'public, max-age=3600', // 缓存1小时
       },
     });
-
-    // 假设的R2公开访问URL，你需要根据你的配置修改
-    const publicUrl = `https://pub-454553535914434791035978f83694f4.r2.dev/${fileName}`;
-    uploadResults[categoryKey] = {
-      count: searchIndex.length,
-      url: publicUrl,
-    };
     console.log(`已上传索引: ${fileName}, 包含 ${searchIndex.length} 条记录`);
   }
   
@@ -430,6 +426,12 @@ export async function generateAndStoreSearchIndexes(env: Env): Promise<Record<st
 
 // 辅助函数，将中文分类映射到文件名
 function getCategoryKey(categoryName: string): string {
+  // 检查 categoryName 是否为 undefined 或 null
+  if (!categoryName) {
+    console.warn('分类名称为空，使用默认值 "unknown"');
+    return 'unknown';
+  }
+  
   const map: { [key: string]: string } = {
     '工科': 'gongke',
     '文科': 'wenke',
@@ -475,10 +477,11 @@ export async function getPosterMetadataByCategory(
 
     const lowerCaseQuery = searchQuery.toLowerCase();
     const filteredPosters = categoryPosters.filter(poster => {
-      const titleMatches = poster.title.toLowerCase().includes(lowerCaseQuery);
-      const descriptionMatches = poster.description.toLowerCase().includes(lowerCaseQuery);
+      // 添加安全检查，避免 undefined 值调用 toLowerCase()
+      const titleMatches = poster.title && poster.title.toLowerCase().includes(lowerCaseQuery);
+      const descriptionMatches = poster.description && poster.description.toLowerCase().includes(lowerCaseQuery);
       const targetAudienceMatches = poster.targetAudience && poster.targetAudience.some(audience =>
-        audience.toLowerCase().includes(lowerCaseQuery)
+        audience && audience.toLowerCase().includes(lowerCaseQuery)
       );
       return titleMatches || descriptionMatches || targetAudienceMatches;
     });
