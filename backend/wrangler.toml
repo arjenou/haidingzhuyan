@@ -1,12 +1,12 @@
-name = "xinhangdao-api"
+name = "haidingzhuyan-api"
 main = "src/index.ts"
 compatibility_date = "2023-12-01"
 
 # R2 存储桶配置
 [[r2_buckets]]
 binding = 'R2_BUCKET'
-bucket_name = 'xinhangdao'
-preview_bucket_name = 'xinhangdao'
+bucket_name = 'haidingzhuyan'
+preview_bucket_name = 'haidingzhuyan'
 
 # KV 命名空间配置
 [[kv_namespaces]]

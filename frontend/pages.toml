@@ -4,7 +4,7 @@ publish = "dist"
 environment = "production"
 
 [site]
-name = "xinhangdao"
+name = "haidingzhuyan"
 
 [build.processing]
   skip_processing = false

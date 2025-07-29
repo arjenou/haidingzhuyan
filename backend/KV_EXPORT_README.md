@@ -94,7 +94,7 @@ GET /api/exported-data/like/3
       "category": "工科",
       "targetAudience": ["计算机、人工智能、数据科学、网络安全、软件工程等相关专业"],
       "imageKey": "posters/1750313896799-169对抗机器学习及人工智能的可靠性.jpg",
-      "imageUrl": "https://api.capstoneketi.com/api/get-poster-url/posters%2F1750313896799-169%E5%AF%B9%E6%8A%97%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E5%8F%8A%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD%E7%9A%84%E5%8F%AF%E9%9D%A0%E6%80%A7.jpg",
+      "imageUrl": "https://api.castoneeic.com/api/get-poster-url/posters%2F1750313896799-169%E5%AF%B9%E6%8A%97%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E5%8F%8A%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD%E7%9A%84%E5%8F%AF%E9%9D%A0%E6%80%A7.jpg",
       "createdAt": 1750313899488,
       "updatedAt": 1750313899488
     }

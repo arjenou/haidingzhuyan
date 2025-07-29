@@ -30,9 +30,9 @@ import {
 // 创建Hono应用
 const app = new Hono();
 
-// 添加CORS中间件，只允许 capstoneketi.com
+// 添加CORS中间件，只允许 castoneeic.com
 app.use('*', cors({
-  origin: 'https://capstoneketi.com',
+  origin: 'https://castoneeic.com',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -61,7 +61,7 @@ app.post('/api/upload-poster', async (c) => {
     });
 
     // 生成直接使用Worker的URL，确保正确编码
-    const workerUrl = 'https://xinhangdao-api.wangyunjie1101.workers.dev';
+    const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
     const encodedFileName = encodeURIComponent(fileName);
     const url = `${workerUrl}/api/get-poster-url/${encodedFileName}`;
 
@@ -146,7 +146,7 @@ app.get('/api/list-posters', async (c) => {
       prefix: 'posters/'
     });
     
-    const workerUrl = 'https://xinhangdao-api.wangyunjie1101.workers.dev';
+    const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
     const posters = objects.objects.map(item => ({
       key: item.key,
       lastModified: item.uploaded,
@@ -336,13 +336,13 @@ app.get('/api/categories', async (c) => {
 app.get('/api/fix-poster-urls', async (c) => {
   try {
     const { posters } = await getAllPosterMetadata((c.env as unknown) as Env, 1);
-    const workerUrl = 'https://xinhangdao-api.wangyunjie1101.workers.dev';
+    const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
     let fixedCount = 0;
     
     for (const poster of posters) {
       // 检查URL是否需要更新（如果包含cloudflare storage URL或不是workers URL）
       if ((poster.imageUrl.includes('cloudflarestorage.com') || 
-           !poster.imageUrl.includes('xinhangdao-api.wangyunjie1101.workers.dev')) && 
+           !poster.imageUrl.includes('haidingzhuyan-api.wangyunjie1101.workers.dev')) && 
           poster.imageKey) {
         
         // 确保正确编码文件名
@@ -384,7 +384,7 @@ app.get('/api/fix-specific-poster', async (c) => {
     }
     
     // 生成正确编码的URL
-    const workerUrl = 'https://xinhangdao-api.wangyunjie1101.workers.dev';
+    const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
     const encodedKey = encodeURIComponent(poster.imageKey);
     const newUrl = `${workerUrl}/api/get-poster-url/${encodedKey}`;
     

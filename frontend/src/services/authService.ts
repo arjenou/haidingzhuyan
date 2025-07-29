@@ -2,7 +2,7 @@
 
 // 管理员密码 - 实际应用中应该使用更安全的方法
 const ADMIN_PASSWORD = 'admin123'; // 应当修改为更复杂的密码
-const AUTH_TOKEN_KEY = 'xinhangdao_admin_token';
+const AUTH_TOKEN_KEY = 'haidingzhuyan_admin_token';
 
 /**
  * 管理员登录

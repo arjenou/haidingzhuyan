@@ -72,7 +72,7 @@ cd backend
 
 ```typescript
 define: {
-  'import.meta.env.VITE_API_BASE_URL': JSON.stringify('https://xinhangdao-api.your-account.workers.dev/api')
+  'import.meta.env.VITE_API_BASE_URL': JSON.stringify('https://haidingzhuyan-api.your-account.workers.dev/api')
 }
 ```
 
@@ -98,6 +98,6 @@ define: {
 3. **找不到根目录错误**：
    - 确保在Cloudflare Pages设置中指定了正确的根目录（`frontend`） 
 
-   (base) wang.yunjie@mf-3714-mm02:~/Desktop/LiuShi/xinHangdao/frontend|main⚡ ⇒  curl -X POST https://xinhangdao-api.wangyunjie1101.workers.dev/api/admin/export-categorized-data
+   (base) wang.yunjie@mf-3714-mm02:~/Desktop/LiuShi/haidingzhuyan/frontend|main⚡ ⇒  curl -X POST https://haidingzhuyan-api.wangyunjie1101.workers.dev/api/admin/export-categorized-data
 
-   curl -X POST https://xinhangdao-api.wangyunjie1101.workers.dev/api/build-search-indexes
+   curl -X POST https://haidingzhuyan-api.wangyunjie1101.workers.dev/api/build-search-indexes

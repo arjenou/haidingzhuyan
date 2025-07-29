@@ -1,8 +1,8 @@
 {
-  "name": "xinhangdao-monorepo",
+  "name": "haidingzhuyan-monorepo",
   "private": true,
   "version": "1.0.0",
-  "description": "新航道项目 - 前后端分离",
+  "description": "海顶助研",
   "scripts": {
     "frontend:install": "cd frontend && npm install",
     "backend:install": "cd backend && npm install",

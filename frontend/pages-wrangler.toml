@@ -1,7 +1,7 @@
 # 这是一个专用于Cloudflare Pages的配置文件
 # 它会替换原始的wrangler.toml，以防止Pages构建时尝试部署Worker
 
-name = "xinhangdao-pages"
+name = "haidingzhuyan-pages"
 compatibility_date = "2023-12-01"
 
 # 资产目录配置，告诉Wrangler在哪里找到静态资产

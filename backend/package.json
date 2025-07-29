@@ -1,7 +1,7 @@
 {
-  "name": "xinhangdao-api",
+  "name": "haidingzhuyan-api",
   "version": "1.0.0",
-  "description": "XinHangDao API backend",
+  "description": "haidingzhuyan API backend",
   "main": "dist/index.js",
   "scripts": {
     "dev": "wrangler dev",

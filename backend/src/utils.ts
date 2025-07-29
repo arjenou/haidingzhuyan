@@ -38,6 +38,6 @@ export async function extractFileFromFormData(
 export function getObjectUrl(env: Env, key: string): string {
   // 这里使用Cloudflare Workers的URL模式
   // 基础URL是Worker的URL，然后添加路径
-  const workerUrl = 'https://xinhangdao-api.wangyunjie1101.workers.dev';
+  const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
   return `${workerUrl}/api/get-poster-url/${key}`;
 } 

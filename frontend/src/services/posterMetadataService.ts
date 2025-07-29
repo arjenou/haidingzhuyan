@@ -1,6 +1,6 @@
 // 可以根据需要替换为您的Cloudflare Workers URL
 // 部署时手动更改此URL或使用环境变量
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.capstoneketi.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.castoneeic.com/api';
 import { getCategoryIds } from '../constants/categories';
 
 // 调试日志

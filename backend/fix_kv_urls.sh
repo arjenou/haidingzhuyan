@@ -10,8 +10,8 @@
 #   - 将更新后的数据写回KV
 
 # --- 配置 ---
-OLD_DOMAIN="xinhangdao-api.wangyunjie1101.workers.dev"
-NEW_DOMAIN="api.capstoneketi.com"
+OLD_DOMAIN="haidingzhuyan-api.wangyunjie1101.workers.dev"
+NEW_DOMAIN="api.castoneeic.com"
 # wrangler.toml 文件的路径
 CONFIG_FILE="backend/wrangler.toml"
 
@@ -89,4 +89,4 @@ process_namespace "POSTER_METADATA_PAGES (缓存数据)" "$POSTER_METADATA_PAGES
 
 echo -e "\n\n🚀 所有命名空间都已成功处理！"
 echo "💡 重要提示: 作为最后的保险步骤，建议你再调用一次后端接口来重建所有缓存。"
-echo "💡 运行此命令: curl -X POST https://api.capstoneketi.com/api/refactor-database" 
+echo "💡 运行此命令: curl -X POST https://api.castoneeic.com/api/refactor-database" 

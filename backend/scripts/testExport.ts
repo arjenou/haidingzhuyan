@@ -57,7 +57,7 @@ console.log('    "description": "描述",');
 console.log('    "category": "工科",');
 console.log('    "targetAudience": ["相关专业"],');
 console.log('    "imageKey": "posters/xxx.jpg",');
-console.log('    "imageUrl": "https://api.capstoneketi.com/api/get-poster-url/xxx",');
+console.log('    "imageUrl": "https://api.castoneeic.com/api/get-poster-url/xxx",');
 console.log('    "createdAt": 1234567890,');
 console.log('    "updatedAt": 1234567890');
 console.log('  }');

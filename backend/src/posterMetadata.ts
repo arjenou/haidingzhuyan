@@ -43,8 +43,8 @@ export function fixPosterUrl<T extends { imageUrl?: string | null }>(poster: T):
   if (!poster.imageUrl) {
     return poster;
   }
-  const oldDomain = 'xinhangdao-api.wangyunjie1101.workers.dev';
-  const newDomain = 'api.capstoneketi.com';
+  const oldDomain = 'haidingzhuyan-api.wangyunjie1101.workers.dev';
+  const newDomain = 'api.castoneeic.com';
   
   // 同时处理带协议和不带协议的域名
   if (poster.imageUrl.includes(oldDomain)) {
@@ -626,8 +626,8 @@ export async function migrateImageUrls(env: Env): Promise<{ total: number; migra
     errors: 0,
   };
 
-  const oldDomain = 'xinhangdao-api.wangyunjie1101.workers.dev';
-  const newDomain = 'api.capstoneketi.com';
+  const oldDomain = 'haidingzhuyan-api.wangyunjie1101.workers.dev';
+  const newDomain = 'api.castoneeic.com';
 
   for (const poster of allPosters) {
     try {
