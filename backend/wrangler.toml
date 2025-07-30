@@ -11,7 +11,7 @@ preview_bucket_name = 'haidingzhuyan'
 # KV 命名空间配置
 [[kv_namespaces]]
 binding = "POSTER_METADATA"
-id = "ff7c311c77854f6cad6c1dbcd550e8fd"
+id = "566eea77808f41728aaacd5b3d3bc0bd"
 
 [site]
 bucket = "./public"
