@@ -2,6 +2,11 @@ name = "haidingzhuyan-api"
 main = "src/index.ts"
 compatibility_date = "2023-12-01"
 
+# 自定义域名路由
+routes = [
+  { pattern = "api.castoneeic.com/*", zone_name = "castoneeic.com" }
+]
+
 # R2 存储桶配置
 [[r2_buckets]]
 binding = 'R2_BUCKET'

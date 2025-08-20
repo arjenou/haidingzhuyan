@@ -36,8 +36,7 @@ export async function extractFileFromFormData(
  * 使用Cloudflare Workers直接提供的R2公开访问URL
  */
 export function getObjectUrl(env: Env, key: string): string {
-  // 这里使用Cloudflare Workers的URL模式
-  // 基础URL是Worker的URL，然后添加路径
-  const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
+  // 使用api.castoneeic.com域名
+  const workerUrl = 'https://api.castoneeic.com';
   return `${workerUrl}/api/get-poster-url/${key}`;
 } 

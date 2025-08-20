@@ -43,20 +43,31 @@ export function fixPosterUrl<T extends { imageUrl?: string | null }>(poster: T):
   if (!poster.imageUrl) {
     return poster;
   }
-  const oldDomain = 'haidingzhuyan-api.wangyunjie1101.workers.dev';
-  const newDomain = 'api.castoneeic.com';
   
-  // 同时处理带协议和不带协议的域名
-  if (poster.imageUrl.includes(oldDomain)) {
-    const url = new URL(poster.imageUrl);
-    if (url.hostname === oldDomain) {
-      url.hostname = newDomain;
-      return {
-        ...poster,
-        imageUrl: url.toString()
-      };
-    }
+  // 将workers.dev域名改为api.castoneeic.com
+  if (poster.imageUrl.includes('haidingzhuyan-api.wangyunjie1101.workers.dev')) {
+    return {
+      ...poster,
+      imageUrl: poster.imageUrl.replace('haidingzhuyan-api.wangyunjie1101.workers.dev', 'api.castoneeic.com')
+    };
   }
+  
+  // 将castoneeic.com改为api.castoneeic.com
+  if (poster.imageUrl.includes('https://castoneeic.com/api/')) {
+    return {
+      ...poster,
+      imageUrl: poster.imageUrl.replace('https://castoneeic.com/', 'https://api.castoneeic.com/')
+    };
+  }
+  
+  // 将haidingzhuyan改为api.castoneeic.com
+  if (poster.imageUrl.includes('https://haidingzhuyan/api/')) {
+    return {
+      ...poster,
+      imageUrl: poster.imageUrl.replace('https://haidingzhuyan/', 'https://api.castoneeic.com/')
+    };
+  }
+  
   return poster;
 }
 

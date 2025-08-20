@@ -30,9 +30,19 @@ import {
 // 创建Hono应用
 const app = new Hono();
 
-// 添加CORS中间件，只允许 castoneeic.com
+// 添加CORS中间件，允许 haidingzhuyan pages 域名
 app.use('*', cors({
-  origin: 'https://castoneeic.com',
+  origin: (origin) => {
+    const allowedOrigins = [
+      'https://api.castoneeic.com',
+      'https://castoneeic.com',
+      'https://haidingzhuyan.pages.dev'
+    ];
+    if (!origin) return origin; // 允许非浏览器请求（如 curl）
+    if (allowedOrigins.includes(origin)) return origin;
+    if (origin.endsWith('.haidingzhuyan.pages.dev')) return origin;
+    return null;
+  },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -61,7 +71,7 @@ app.post('/api/upload-poster', async (c) => {
     });
 
     // 生成直接使用Worker的URL，确保正确编码
-    const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
+    const workerUrl = 'https://api.castoneeic.com';
     const encodedFileName = encodeURIComponent(fileName);
     const url = `${workerUrl}/api/get-poster-url/${encodedFileName}`;
 
@@ -146,7 +156,7 @@ app.get('/api/list-posters', async (c) => {
       prefix: 'posters/'
     });
     
-    const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
+    const workerUrl = 'https://api.castoneeic.com';
     const posters = objects.objects.map(item => ({
       key: item.key,
       lastModified: item.uploaded,
@@ -335,15 +345,16 @@ app.get('/api/categories', async (c) => {
 // 修复已存在的海报URL（管理员使用）
 app.get('/api/fix-poster-urls', async (c) => {
   try {
-    const { posters } = await getAllPosterMetadata((c.env as unknown) as Env, 1);
-    const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
+    const allPosters = await getAllPosterMetadataWithoutPagination((c.env as unknown) as Env);
+    const workerUrl = 'https://api.castoneeic.com';
     let fixedCount = 0;
     
-    for (const poster of posters) {
-      // 检查URL是否需要更新（如果包含cloudflare storage URL或不是workers URL）
-      if ((poster.imageUrl.includes('cloudflarestorage.com') || 
-           !poster.imageUrl.includes('haidingzhuyan-api.wangyunjie1101.workers.dev')) && 
-          poster.imageKey) {
+    for (const poster of allPosters) {
+      // 检查URL是否需要更新（如果包含cloudflare storage URL或不是正确的API URL）
+      if (poster.imageKey && poster.imageUrl && 
+          (poster.imageUrl.includes('cloudflarestorage.com') || 
+           poster.imageUrl.includes('api.castoneeic.com') ||
+           !poster.imageUrl.includes('haidingzhuyan-api.wangyunjie1101.workers.dev'))) {
         
         // 确保正确编码文件名
         const encodedKey = encodeURIComponent(poster.imageKey);
@@ -371,6 +382,47 @@ app.get('/api/fix-poster-urls', async (c) => {
   }
 });
 
+// 强力修复所有URL
+app.get('/api/force-fix-urls', async (c) => {
+  try {
+    const allPosters = await getAllPosterMetadataWithoutPagination((c.env as unknown) as Env);
+    const workerUrl = 'https://api.castoneeic.com';
+    let fixedCount = 0;
+    
+    for (const poster of allPosters) {
+      if (poster.imageKey && poster.imageUrl && 
+          (poster.imageUrl.includes('api.castoneeic.com') ||
+           poster.imageUrl.includes('haidingzhuyan-api.wangyunjie1101.workers.dev') ||
+           poster.imageUrl.includes('https://haidingzhuyan/'))) {
+        
+        const encodedKey = encodeURIComponent(poster.imageKey);
+        const newUrl = `${workerUrl}/api/get-poster-url/${encodedKey}`;
+        
+        // 直接更新KV存储
+        const updatedPoster = {
+          ...poster,
+          imageUrl: newUrl,
+          updatedAt: Date.now()
+        };
+        
+        await ((c.env as unknown) as Env).POSTER_METADATA.put(poster.id, JSON.stringify(updatedPoster));
+        fixedCount++;
+      }
+    }
+    
+    return c.json({ 
+      success: true, 
+      message: `强制修复了 ${fixedCount} 个海报URL`
+    });
+  } catch (error) {
+    console.error('强制修复URL错误:', error);
+    return c.json({ 
+      error: '强制修复失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
 // 强制修复特定海报URL（用于解决中文编码问题）
 app.get('/api/fix-specific-poster', async (c) => {
   try {
@@ -384,7 +436,7 @@ app.get('/api/fix-specific-poster', async (c) => {
     }
     
     // 生成正确编码的URL
-    const workerUrl = 'https://haidingzhuyan-api.wangyunjie1101.workers.dev';
+    const workerUrl = 'https://api.castoneeic.com';
     const encodedKey = encodeURIComponent(poster.imageKey);
     const newUrl = `${workerUrl}/api/get-poster-url/${encodedKey}`;
     
@@ -633,6 +685,92 @@ app.get('/api/admin/static-json-data', async (c) => {
     console.error('生成静态JSON数据失败:', error);
     return c.json({ 
       error: '生成静态JSON数据失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 完全修复所有数据并重新导出
+app.get('/api/complete-fix-all', async (c) => {
+  try {
+    // 1. 修复KV中的所有数据
+    const allPosters = await getAllPosterMetadataWithoutPagination((c.env as unknown) as Env);
+    const workerUrl = 'https://api.castoneeic.com';
+    let fixedCount = 0;
+    
+    for (const poster of allPosters) {
+      if (poster.imageKey && poster.imageUrl && 
+          (poster.imageUrl.includes('api.castoneeic.com') ||
+           poster.imageUrl.includes('haidingzhuyan-api.wangyunjie1101.workers.dev') ||
+           poster.imageUrl.includes('https://haidingzhuyan/'))) {
+        
+        const encodedKey = encodeURIComponent(poster.imageKey);
+        const newUrl = `${workerUrl}/api/get-poster-url/${encodedKey}`;
+        
+        const updatedPoster = {
+          ...poster,
+          imageUrl: newUrl,
+          updatedAt: Date.now()
+        };
+        
+        await ((c.env as unknown) as Env).POSTER_METADATA.put(poster.id, JSON.stringify(updatedPoster));
+        fixedCount++;
+      }
+    }
+    
+    // 2. 重新导出分类数据
+    const exportResult = await exportCategorizedDataToKV((c.env as unknown) as Env);
+    
+    return c.json({ 
+      success: true, 
+      message: `完全修复完成`,
+      fixedPosters: fixedCount,
+      exportResult
+    });
+  } catch (error) {
+    console.error('完全修复错误:', error);
+    return c.json({ 
+      error: '完全修复失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 清理所有缓存和索引，强制重建
+app.get('/api/admin/clear-cache-and-rebuild', async (c) => {
+  try {
+    const env = (c.env as unknown) as Env;
+    
+    // 1. 清理索引
+    const listResult = await env.POSTER_METADATA.list();
+    const deletePromises: Promise<void>[] = [];
+    
+    for (const key of listResult.keys) {
+      if (key.name.startsWith('POSTER_METADATA_INDEX_') || 
+          key.name === 'POSTER_METADATA_COUNT' ||
+          key.name.startsWith('CATEGORY_DATA_') ||
+          key.name.startsWith('SEARCH_INDEX_')) {
+        deletePromises.push(env.POSTER_METADATA.delete(key.name));
+      }
+    }
+    
+    await Promise.all(deletePromises);
+    
+    // 2. 强制重新获取所有数据（这会触发重建）
+    const allPosters = await getAllPosterMetadataWithoutPagination(env);
+    
+    // 3. 重新导出分类数据
+    const exportResult = await exportCategorizedDataToKV(env);
+    
+    return c.json({ 
+      success: true, 
+      message: `缓存清理完成，重建了${allPosters.length}个海报的索引`,
+      exportResult
+    });
+  } catch (error) {
+    console.error('清理缓存错误:', error);
+    return c.json({ 
+      error: '清理缓存失败', 
       details: error instanceof Error ? error.message : String(error) 
     }, 500);
   }
