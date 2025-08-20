@@ -27,4 +27,4 @@ npx wrangler pages deploy dist --project-name=haidingzhuyan
 
 echo "部署完成！请在Cloudflare控制台设置环境变量。"
 echo "名称: VITE_API_BASE_URL"
-echo "值: https://haidingzhuyan-api.wangyunjie1101.workers.dev/api" 
+echo "值: https://api.castoneeic.com/api" 
