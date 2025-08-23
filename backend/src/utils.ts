@@ -23,9 +23,9 @@ export async function extractFileFromFormData(
   
   const file = poster as File;
   
-  // 检查文件大小 (5MB限制)
-  if (file.size > 5 * 1024 * 1024) {
-    return { file: null, error: '文件大小超过5MB限制' };
+  // 检查文件大小 (10MB限制)
+  if (file.size > 10 * 1024 * 1024) {
+    return { file: null, error: '文件大小超过10MB限制' };
   }
   
   return { file, error: null };

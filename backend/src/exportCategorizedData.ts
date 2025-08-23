@@ -112,27 +112,51 @@ export async function exportCategorizedDataToKV(env: Env): Promise<{
 }
 
 /**
- * 从KV读取导出的分类分页数据
+ * 从KV读取导出的分类分页数据，如果没有则直接从数据库查询
  */
 export async function getExportedCategoryData(
   env: Env, 
   category: string, 
   page: number
 ): Promise<PosterMetadata[] | null> {
+  // 首先尝试从KV读取导出的数据
   const categoryKey = getCategoryKey(category);
   const kvKey = `EXPORT_${categoryKey}_${page}`;
   
-  const data = await env.POSTER_METADATA.get(kvKey);
-  if (!data) {
-    return null;
+  const kvData = await env.POSTER_METADATA.get(kvKey);
+  if (kvData) {
+    try {
+      return JSON.parse(kvData) as PosterMetadata[];
+    } catch (e) {
+      console.error(`解析导出的分类数据失败: ${kvKey}`, e);
+      // 如果解析失败，继续执行回退逻辑
+    }
   }
   
-  try {
-    return JSON.parse(data) as PosterMetadata[];
-  } catch (e) {
-    console.error(`解析导出的分类数据失败: ${kvKey}`, e);
-    return null;
-  }
+  // 回退方案：直接从数据库查询
+  console.log(`KV中没有找到 ${kvKey}，从数据库直接查询`);
+  
+  // 反向映射：从英文键名找到中文分类名
+  const reverseCategoryMapping = Object.fromEntries(
+    Object.entries(CATEGORY_MAPPING).map(([chinese, english]) => [english, chinese])
+  );
+  
+  const chineseCategoryName = reverseCategoryMapping[categoryKey] || categoryKey;
+  
+  // 获取所有海报数据
+  const allPosters = await getAllPosterMetadataWithoutPagination(env);
+  
+  // 过滤指定分类的海报
+  const categoryPosters = allPosters
+    .filter(poster => poster.category === chineseCategoryName)
+    .map(poster => fixPosterUrl(poster));
+  
+  // 分页
+  const start = (page - 1) * POSTERS_PER_PAGE;
+  const end = start + POSTERS_PER_PAGE;
+  const pagePosters = categoryPosters.slice(start, end);
+  
+  return pagePosters.length > 0 ? pagePosters : null;
 }
 
 /**
