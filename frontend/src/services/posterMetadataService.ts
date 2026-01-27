@@ -301,4 +301,119 @@ export const searchPosterMetadata = async (
   
   console.log('搜索后的海报数量:', searchResults.length);
   return searchResults;
+};
+
+/**
+ * 清空所有KV数据（海报元数据）
+ */
+export const clearAllMetadata = async (): Promise<{ success: boolean; message: string; deletedCount: number }> => {
+  const response = await fetch(`${API_BASE_URL}/admin/clear-all-metadata`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || '清空KV数据失败');
+  }
+
+  return response.json();
+};
+
+/**
+ * 清空所有R2数据（海报图片）
+ */
+export const clearAllPosters = async (): Promise<{ success: boolean; message: string; deletedCount: number }> => {
+  const response = await fetch(`${API_BASE_URL}/admin/clear-all-posters`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || '清空R2数据失败');
+  }
+
+  return response.json();
+};
+
+/**
+ * 一键清空所有数据（KV + R2）
+ */
+export const clearAllData = async (): Promise<{ 
+  success: boolean; 
+  message: string; 
+  kvDeletedCount: number;
+  r2DeletedCount: number;
+}> => {
+  const response = await fetch(`${API_BASE_URL}/admin/clear-all-data`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || '清空所有数据失败');
+  }
+
+  return response.json();
+};
+
+/**
+ * 导出分类分页数据到KV
+ */
+export const exportCategorizedData = async (): Promise<{ 
+  success: boolean; 
+  message: string;
+  totalPosters: number;
+  categories: Record<string, { count: number; pages: number }>;
+}> => {
+  const response = await fetch(`${API_BASE_URL}/admin/export-categorized-data`, {
+    method: 'POST',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || '导出分类数据失败');
+  }
+
+  return response.json();
+};
+
+/**
+ * 生成搜索索引文件
+ */
+export const buildSearchIndexes = async (): Promise<{ 
+  success: boolean; 
+  message: string;
+  details: Record<string, any>;
+}> => {
+  const response = await fetch(`${API_BASE_URL}/build-search-indexes`, {
+    method: 'POST',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || '生成搜索索引失败');
+  }
+
+  return response.json();
+};
+
+/**
+ * 重新生成所有数据（导出分类数据 + 生成搜索索引）
+ */
+export const regenerateAllData = async (): Promise<{
+  success: boolean;
+  exportResult: any;
+  indexResult: any;
+}> => {
+  // 1. 导出分类数据
+  const exportResult = await exportCategorizedData();
+  
+  // 2. 生成搜索索引
+  const indexResult = await buildSearchIndexes();
+  
+  return {
+    success: true,
+    exportResult,
+    indexResult
+  };
 }; 

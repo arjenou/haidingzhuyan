@@ -16,7 +16,8 @@ import {
   updateCategoryData,
   generateAndStoreSearchIndexes,
   migrateImageUrls,
-  generateFrontendData
+  generateFrontendData,
+  invalidateCache
 } from './posterMetadata';
 import { autoRefactorDatabase } from './autoRefactorDatabase';
 import { 
@@ -771,6 +772,183 @@ app.get('/api/admin/clear-cache-and-rebuild', async (c) => {
     console.error('清理缓存错误:', error);
     return c.json({ 
       error: '清理缓存失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// ========== 管理员数据清理 API ==========
+
+// 清空所有KV数据（海报元数据）
+app.delete('/api/admin/clear-all-metadata', async (c) => {
+  try {
+    const env = (c.env as unknown) as Env;
+    let deletedCount = 0;
+    
+    // 列出所有KV键
+    const listResult = await env.POSTER_METADATA.list();
+    const deletePromises: Promise<void>[] = [];
+    
+    // 删除所有键
+    for (const key of listResult.keys) {
+      deletePromises.push(env.POSTER_METADATA.delete(key.name));
+      deletedCount++;
+    }
+    
+    await Promise.all(deletePromises);
+    
+    // 处理可能有多页的情况
+    let cursor = listResult.cursor;
+    while (cursor) {
+      const nextBatch = await env.POSTER_METADATA.list({ cursor });
+      const nextDeletePromises: Promise<void>[] = [];
+      
+      for (const key of nextBatch.keys) {
+        nextDeletePromises.push(env.POSTER_METADATA.delete(key.name));
+        deletedCount++;
+      }
+      
+      await Promise.all(nextDeletePromises);
+      cursor = nextBatch.cursor;
+    }
+    
+    // 清除内存缓存
+    invalidateCache();
+    
+    return c.json({ 
+      success: true, 
+      message: `已删除 ${deletedCount} 条KV记录`,
+      deletedCount
+    });
+  } catch (error) {
+    console.error('清空KV数据失败:', error);
+    return c.json({ 
+      error: '清空KV数据失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 清空所有R2数据（海报图片）
+app.delete('/api/admin/clear-all-posters', async (c) => {
+  try {
+    const env = (c.env as unknown) as Env;
+    let deletedCount = 0;
+    
+    // 列出所有R2对象
+    const listResult = await env.R2_BUCKET.list();
+    const deletePromises: Promise<void>[] = [];
+    
+    // 删除所有对象
+    for (const object of listResult.objects) {
+      deletePromises.push(env.R2_BUCKET.delete(object.key));
+      deletedCount++;
+    }
+    
+    await Promise.all(deletePromises);
+    
+    // 处理可能有多页的情况
+    let cursor = listResult.cursor;
+    while (cursor) {
+      const nextBatch = await env.R2_BUCKET.list({ cursor });
+      const nextDeletePromises: Promise<void>[] = [];
+      
+      for (const object of nextBatch.objects) {
+        nextDeletePromises.push(env.R2_BUCKET.delete(object.key));
+        deletedCount++;
+      }
+      
+      await Promise.all(nextDeletePromises);
+      cursor = nextBatch.cursor;
+    }
+    
+    // 清除内存缓存
+    invalidateCache();
+    
+    return c.json({ 
+      success: true, 
+      message: `已删除 ${deletedCount} 个R2文件`,
+      deletedCount
+    });
+  } catch (error) {
+    console.error('清空R2数据失败:', error);
+    return c.json({ 
+      error: '清空R2数据失败', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, 500);
+  }
+});
+
+// 一键清空所有数据（KV + R2）
+app.delete('/api/admin/clear-all-data', async (c) => {
+  try {
+    const env = (c.env as unknown) as Env;
+    let kvDeletedCount = 0;
+    let r2DeletedCount = 0;
+    
+    // 删除所有KV数据
+    const kvListResult = await env.POSTER_METADATA.list();
+    const kvDeletePromises: Promise<void>[] = [];
+    
+    for (const key of kvListResult.keys) {
+      kvDeletePromises.push(env.POSTER_METADATA.delete(key.name));
+      kvDeletedCount++;
+    }
+    
+    await Promise.all(kvDeletePromises);
+    
+    let kvCursor = kvListResult.cursor;
+    while (kvCursor) {
+      const nextBatch = await env.POSTER_METADATA.list({ cursor: kvCursor });
+      const nextDeletePromises: Promise<void>[] = [];
+      
+      for (const key of nextBatch.keys) {
+        nextDeletePromises.push(env.POSTER_METADATA.delete(key.name));
+        kvDeletedCount++;
+      }
+      
+      await Promise.all(nextDeletePromises);
+      kvCursor = nextBatch.cursor;
+    }
+    
+    // 删除所有R2数据
+    const r2ListResult = await env.R2_BUCKET.list();
+    const r2DeletePromises: Promise<void>[] = [];
+    
+    for (const object of r2ListResult.objects) {
+      r2DeletePromises.push(env.R2_BUCKET.delete(object.key));
+      r2DeletedCount++;
+    }
+    
+    await Promise.all(r2DeletePromises);
+    
+    let r2Cursor = r2ListResult.cursor;
+    while (r2Cursor) {
+      const nextBatch = await env.R2_BUCKET.list({ cursor: r2Cursor });
+      const nextDeletePromises: Promise<void>[] = [];
+      
+      for (const object of nextBatch.objects) {
+        nextDeletePromises.push(env.R2_BUCKET.delete(object.key));
+        r2DeletedCount++;
+      }
+      
+      await Promise.all(nextDeletePromises);
+      r2Cursor = nextBatch.cursor;
+    }
+    
+    // 清除内存缓存
+    invalidateCache();
+    
+    return c.json({ 
+      success: true, 
+      message: `已删除 ${kvDeletedCount} 条KV记录和 ${r2DeletedCount} 个R2文件`,
+      kvDeletedCount,
+      r2DeletedCount
+    });
+  } catch (error) {
+    console.error('清空所有数据失败:', error);
+    return c.json({ 
+      error: '清空所有数据失败', 
       details: error instanceof Error ? error.message : String(error) 
     }, 500);
   }

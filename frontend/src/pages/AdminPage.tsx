@@ -7,7 +7,11 @@ import {
   getAllPosterMetadataForInfiniteScroll, 
   createPosterMetadata, 
   updatePosterMetadata, 
-  deletePosterMetadata
+  deletePosterMetadata,
+  clearAllMetadata,
+  clearAllPosters,
+  clearAllData,
+  regenerateAllData
 } from '../services/posterMetadataService';
 import { CATEGORIES } from '../constants/categories';
 
@@ -39,6 +43,13 @@ const AdminPage: React.FC = () => {
   const [deletingPoster, setDeletingPoster] = useState<PosterMetadata | null>(null);
   // 详情查看
   const [viewingPoster, setViewingPoster] = useState<PosterMetadata | null>(null);
+  // 清空数据确认
+  const [showClearDataDialog, setShowClearDataDialog] = useState(false);
+  const [clearDataType, setClearDataType] = useState<'metadata' | 'posters' | 'all'>('all');
+  const [isClearing, setIsClearing] = useState(false);
+  // 重新生成数据
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerateSuccess, setRegenerateSuccess] = useState<string | null>(null);
 
   // 加载认证状态
   useEffect(() => {
@@ -187,6 +198,90 @@ const AdminPage: React.FC = () => {
     setViewingPoster(null);
   };
 
+  // 打开清空数据对话框
+  const handleOpenClearDataDialog = (type: 'metadata' | 'posters' | 'all') => {
+    setClearDataType(type);
+    setShowClearDataDialog(true);
+  };
+
+  // 关闭清空数据对话框
+  const handleCloseClearDataDialog = () => {
+    setShowClearDataDialog(false);
+  };
+
+  // 执行清空数据
+  const handleClearData = async () => {
+    setIsClearing(true);
+    setError(null);
+    
+    try {
+      let result;
+      
+      switch (clearDataType) {
+        case 'metadata':
+          result = await clearAllMetadata();
+          break;
+        case 'posters':
+          result = await clearAllPosters();
+          break;
+        case 'all':
+          result = await clearAllData();
+          break;
+      }
+      
+      // 清空本地状态
+      setPosters([]);
+      setDisplayedPosters([]);
+      setCurrentIndex(0);
+      setHasMore(false);
+      
+      // 清空成功后，重新加载数据
+      await loadData();
+      setShowClearDataDialog(false);
+      
+      // 显示成功消息
+      alert(result.message || '清空成功');
+    } catch (err) {
+      console.error('清空数据失败:', err);
+      setError(err instanceof Error ? err.message : '清空数据失败，请重试');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  // 重新生成所有数据
+  const handleRegenerateData = async () => {
+    setIsRegenerating(true);
+    setError(null);
+    setRegenerateSuccess(null);
+    
+    try {
+      const result = await regenerateAllData();
+      
+      // 显示成功消息
+      const exportInfo = result.exportResult;
+      const totalPosters = exportInfo.totalPosters || 0;
+      const categoryCount = Object.keys(exportInfo.categories || {}).length;
+      
+      setRegenerateSuccess(
+        `✅ 重新生成成功！\n` +
+        `- 导出了 ${totalPosters} 个海报\n` +
+        `- 覆盖 ${categoryCount} 个分类\n` +
+        `- 搜索索引已更新`
+      );
+      
+      // 3秒后自动关闭成功消息
+      setTimeout(() => {
+        setRegenerateSuccess(null);
+      }, 5000);
+    } catch (err) {
+      console.error('重新生成数据失败:', err);
+      setError(err instanceof Error ? err.message : '重新生成数据失败，请重试');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   // 处理表单提交
   const handleFormSubmit = async (data: PosterMetadataInput) => {
     try {
@@ -243,12 +338,35 @@ const AdminPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <h1 className="text-xl font-semibold text-gray-900">海报管理系统</h1>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              退出登录
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRegenerateData}
+                disabled={isRegenerating}
+                className="text-sm px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:bg-green-300 disabled:cursor-not-allowed flex items-center gap-2"
+                title="重新生成导出数据和搜索索引"
+              >
+                {isRegenerating && (
+                  <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                {isRegenerating ? '生成中...' : '🔄 重新生成数据'}
+              </button>
+              <button
+                onClick={() => handleOpenClearDataDialog('all')}
+                className="text-sm px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                title="清空所有数据（KV + R2）"
+              >
+                清空所有数据
+              </button>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                退出登录
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -298,6 +416,12 @@ const AdminPage: React.FC = () => {
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
             {error}
+          </div>
+        )}
+
+        {regenerateSuccess && (
+          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md whitespace-pre-line">
+            {regenerateSuccess}
           </div>
         )}
 
@@ -479,6 +603,81 @@ const AdminPage: React.FC = () => {
                 alt={viewingPoster.title}
                 className="max-h-[60vh] object-contain"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 清空数据确认对话框 */}
+      {showClearDataDialog && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-3">⚠️ 危险操作确认</h2>
+            <div className="mb-6">
+              <p className="text-gray-700 mb-3">
+                {clearDataType === 'metadata' && '确定要清空所有KV数据库中的海报元数据吗？'}
+                {clearDataType === 'posters' && '确定要清空所有R2存储中的海报图片吗？'}
+                {clearDataType === 'all' && '确定要清空所有数据吗？包括：'}
+              </p>
+              {clearDataType === 'all' && (
+                <ul className="list-disc list-inside text-gray-600 text-sm space-y-1 mb-3">
+                  <li>KV数据库中的所有海报元数据</li>
+                  <li>R2存储中的所有海报图片</li>
+                </ul>
+              )}
+              <p className="text-red-600 font-semibold text-sm">
+                ⚠️ 此操作不可撤销，所有数据将被永久删除！
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              {clearDataType === 'all' && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setShowClearDataDialog(false);
+                      handleOpenClearDataDialog('metadata');
+                    }}
+                    className="flex-1 px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 text-sm"
+                    disabled={isClearing}
+                  >
+                    只清空KV数据
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowClearDataDialog(false);
+                      handleOpenClearDataDialog('posters');
+                    }}
+                    className="flex-1 px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 text-sm"
+                    disabled={isClearing}
+                  >
+                    只清空R2数据
+                  </button>
+                </div>
+              )}
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={handleCloseClearDataDialog}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                  disabled={isClearing}
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleClearData}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={isClearing}
+                >
+                  {isClearing && (
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {isClearing ? '清空中...' : '确认清空'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

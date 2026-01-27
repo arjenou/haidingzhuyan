@@ -71,7 +71,7 @@ export function fixPosterUrl<T extends { imageUrl?: string | null }>(poster: T):
   return poster;
 }
 
-function invalidateCache() {
+export function invalidateCache() {
   allPostersCache = null;
   cacheTimestamp = 0;
   console.log('内存缓存已清除');
@@ -225,7 +225,9 @@ export async function getAllPosterMetadataWithoutPagination(env: Env): Promise<P
     // 忽略所有索引和分类缓存键
     if (key.name.startsWith(POSTER_METADATA_INDEX_PREFIX) || 
         key.name.startsWith('CATEGORY_DATA_') || 
-        key.name === POSTER_METADATA_COUNT) {
+        key.name.startsWith('EXPORT_') || 
+        key.name === POSTER_METADATA_COUNT ||
+        key.name === 'EXPORT_METADATA') {
       continue;
     }
     
