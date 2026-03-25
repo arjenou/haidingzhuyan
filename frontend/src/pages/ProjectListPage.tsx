@@ -14,6 +14,9 @@ const categoryNameToKeyMap: { [key: string]: string } = {
   '理科': 'like',
 };
 
+/** 搜索跨全部分类，与当前浏览的分类无关 */
+const ALL_SEARCH_INDEX_CATEGORY_KEYS = Object.values(categoryNameToKeyMap);
+
 type SearchIndexItem = Omit<PosterMetadata, 'createdAt' | 'updatedAt'>;
 
 const ProjectListPage: React.FC = () => {
@@ -55,7 +58,6 @@ const ProjectListPage: React.FC = () => {
       setCurrentPage(1);
       setPosters([]);
       setHasMore(true);
-      setSearchIndex([]);
       setSearchResults([]);
     }
   }, [subject]);
@@ -82,24 +84,46 @@ const ProjectListPage: React.FC = () => {
       }
     };
 
-    // 2. 获取搜索索引文件
-    const fetchSearchIndex = async () => {
+    fetchFirstPage();
+  }, [selectedCategory]);
+
+  // 全部分类的搜索索引（搜索不随当前学科 Tab 限制）
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchGlobalSearchIndex = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/search-index/${categoryKey}`);
-        if (!response.ok) {
-          throw new Error(`搜索索引文件未找到: ${response.statusText}`);
+        const responses = await Promise.all(
+          ALL_SEARCH_INDEX_CATEGORY_KEYS.map((key) =>
+            fetch(`${API_BASE_URL}/search-index/${key}`)
+          )
+        );
+        const chunks: SearchIndexItem[][] = await Promise.all(
+          responses.map(async (response) => {
+            if (!response.ok) return [];
+            return (await response.json()) as SearchIndexItem[];
+          })
+        );
+        const merged = chunks.flat();
+        const byId = new Map<string, SearchIndexItem>();
+        for (const item of merged) {
+          if (item?.id && !byId.has(item.id)) {
+            byId.set(item.id, item);
+          }
         }
-        const indexData: SearchIndexItem[] = await response.json();
-        setSearchIndex(indexData);
+        if (!cancelled) {
+          setSearchIndex([...byId.values()]);
+        }
       } catch (err) {
         console.warn('加载搜索索引失败:', err);
-        // 加载失败不影响浏览，仅搜索功能受限
       }
     };
 
-    fetchFirstPage();
-    fetchSearchIndex();
-  }, [selectedCategory]);
+    fetchGlobalSearchIndex();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 监听搜索词变化，执行客户端搜索
   useEffect(() => {
