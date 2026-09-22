@@ -23,7 +23,9 @@
       "Bash(curl -s -o /tmp/qb/categories --max-time 90 \"https://api.capstoneqide.com/api/categories\")",
       "Bash(curl -s --max-time 40 \"https://api.haiwaizaiyan.com/api/search-index/global?version=pro\")",
       "Bash(curl -s -o /dev/null -w \"  HTTP %{http_code}\\\\n\" --max-time 40 \"https://api.haiwaizaiyan.com/api/search-index/global?version=pro\")",
-      "Bash(curl -s --max-time 40 -G \"https://api.haiwaizaiyan.com/api/poster\" --data-urlencode \"category=工科\" --data-urlencode \"page=1\" --data-urlencode \"version=standard\")"
+      "Bash(curl -s --max-time 40 -G \"https://api.haiwaizaiyan.com/api/poster\" --data-urlencode \"category=工科\" --data-urlencode \"page=1\" --data-urlencode \"version=standard\")",
+      "Bash(python3 -c \"import json,sys;print\\(' ',json.load\\(sys.stdin\\)[0]['results']\\)\")",
+      "Bash(echo \"tsc=$?\")"
     ],
     "additionalDirectories": [
       "/Users/wang.yunjie/Desktop/项目/capstone-admin/web",
