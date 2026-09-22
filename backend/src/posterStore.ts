@@ -77,8 +77,17 @@ function shape(r: Row, origin: string) {
 
 const ORDER = 'ORDER BY updated_at DESC, id DESC';
 
-function likeArg(q: string): string {
-  return `%${q.replace(/[\\%_]/g, (m) => '\\' + m)}%`;
+/**
+ * 子串匹配用 instr() 而不是 LIKE。
+ *
+ * SQLITE_MAX_LIKE_PATTERN_LENGTH 默认只有 50 字节，中文一个字 3 字节，
+ * 搜索词超过约 16 个汉字 LIKE 就会报「pattern too complex」导致整个请求 500。
+ * instr() 没有这个限制，而且参数是纯字符串，不用转义通配符。
+ *
+ * lower() 在 SQLite 里只处理 ASCII：英文大小写不敏感，中文不受影响。
+ */
+function matchClause(field: string): string {
+  return `instr(lower(${field}), lower(?)) > 0`;
 }
 
 /**
@@ -186,9 +195,9 @@ export function registerPosterReadRoutes(app: Hono, site: string): void {
     }
     const q = c.req.query('q');
     if (q && q.trim()) {
-      const arg = likeArg(q.trim());
+      const arg = q.trim();
       filters.push(
-        "(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR target_audience LIKE ? ESCAPE '\\')"
+        `(${matchClause('title')} OR ${matchClause('description')} OR ${matchClause('target_audience')})`
       );
       args.push(arg, arg, arg);
     }

@@ -30,7 +30,14 @@
       "Bash(curl -s -o /dev/null -w \"管理 API  → HTTP %{http_code} \\(401=正常，未带 token\\)\\\\n\" --max-time 30 https://capstone-admin-api.wangyunjie1101.workers.dev/api/stats)",
       "Bash(python3)",
       "Bash(npx --yes wrangler@4.136.1 pages --help)",
-      "Bash(npx --yes wrangler@4.136.1 pages domain --help)"
+      "Bash(npx --yes wrangler@4.136.1 pages domain --help)",
+      "Bash(curl -s -X DELETE __TRACKED_VAR__/api/qide/posters/__CMDSUB_OUTPUT__ -H 'Authorization: Bearer __CMDSUB_OUTPUT__')",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(curl -s --max-time 30 -H 'Cache-Control: no-cache' https://admin.haiwaizaiyan.com/?cb=__TRACKED_VAR__)",
+      "Bash(curl -s -o /tmp/n.js -w \"  index-C7tz71FN.js → HTTP %{http_code}, %{size_download} bytes\\\\n\" --max-time 40 \"https://admin.haiwaizaiyan.com/assets/index-C7tz71FN.js\")",
+      "Bash(curl -s -o /tmp/r -w '  HTTP %{http_code}  ' --max-time 30 -G https://capstone-admin-api.wangyunjie1101.workers.dev/api/xindongfang/posters --data-urlencode q=__TRACKED_VAR__ --data-urlencode page=1 --data-urlencode perPage=20 -H 'Authorization: Bearer __CMDSUB_OUTPUT__')",
+      "Bash(python3 -c \"import json;d=json.load\\(open\\('/tmp/r'\\)\\);print\\('结果',d['total'],'条'\\)\")",
+      "Bash(curl -s --max-time 30 -G https://capstone-admin-api.wangyunjie1101.workers.dev/api/qide/posters --data-urlencode q=__TRACKED_VAR__ -H 'Authorization: Bearer __CMDSUB_OUTPUT__')"
     ],
     "additionalDirectories": [
       "/Users/wang.yunjie/Desktop/项目/capstone-admin/web",
