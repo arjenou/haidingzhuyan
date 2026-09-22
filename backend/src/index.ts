@@ -21,6 +21,7 @@ import {
 } from './posterMetadata';
 import { autoRefactorDatabase } from './autoRefactorDatabase';
 import { registerPublicPdfRoutes } from './publicPdfs';
+import { registerPosterReadRoutes } from './posterStore';
 import { 
   exportCategorizedDataToKV, 
   getExportedCategoryData, 
@@ -51,6 +52,10 @@ app.use('*', cors({
 
 // 公开 PDF 只读接口（数据在统一后台的 D1「capstone」库里）
 registerPublicPdfRoutes(app, 'haidingzhuyan');
+
+// 海报读取改走 D1（注册在下面的 KV 路由之前，Hono 首个匹配生效）。
+// 要回退，把这一行注释掉即可，原 KV 代码路径仍然完整。
+registerPosterReadRoutes(app, 'haidingzhuyan');
 
 // 上传海报到R2
 app.post('/api/upload-poster', async (c) => {
