@@ -25,7 +25,10 @@
       "Bash(curl -s -o /dev/null -w \"  HTTP %{http_code}\\\\n\" --max-time 40 \"https://api.haiwaizaiyan.com/api/search-index/global?version=pro\")",
       "Bash(curl -s --max-time 40 -G \"https://api.haiwaizaiyan.com/api/poster\" --data-urlencode \"category=工科\" --data-urlencode \"page=1\" --data-urlencode \"version=standard\")",
       "Bash(python3 -c \"import json,sys;print\\(' ',json.load\\(sys.stdin\\)[0]['results']\\)\")",
-      "Bash(echo \"tsc=$?\")"
+      "Bash(echo \"tsc=$?\")",
+      "Bash(curl -s -o /dev/null -w \"后台界面 https://capstone-admin.pages.dev  → HTTP %{http_code}\\\\n\" --max-time 30 https://capstone-admin.pages.dev/)",
+      "Bash(curl -s -o /dev/null -w \"管理 API  → HTTP %{http_code} \\(401=正常，未带 token\\)\\\\n\" --max-time 30 https://capstone-admin-api.wangyunjie1101.workers.dev/api/stats)",
+      "Bash(python3)"
     ],
     "additionalDirectories": [
       "/Users/wang.yunjie/Desktop/项目/capstone-admin/web",

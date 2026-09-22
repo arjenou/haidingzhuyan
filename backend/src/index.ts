@@ -20,7 +20,6 @@ import {
   invalidateCache
 } from './posterMetadata';
 import { autoRefactorDatabase } from './autoRefactorDatabase';
-import { registerPublicPdfRoutes } from './publicPdfs';
 import { registerPosterReadRoutes } from './posterStore';
 import { requireAdmin } from './requireAdmin';
 import { 
@@ -51,11 +50,8 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// 公开 PDF 只读接口（数据在统一后台的 D1「capstone」库里）
 // 写操作与 /api/admin/* 需要统一后台签发的 token；公开 GET 不受影响
 app.use('*', requireAdmin);
-
-registerPublicPdfRoutes(app, 'haidingzhuyan');
 
 // 海报读取改走 D1（注册在下面的 KV 路由之前，Hono 首个匹配生效）。
 // 要回退，把这一行注释掉即可，原 KV 代码路径仍然完整。
