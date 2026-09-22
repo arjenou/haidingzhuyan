@@ -24,3 +24,8 @@ bucket = "./public"
 # 配置环境变量
 [vars]
 R2_ENDPOINT = "https://2e9ce2c37b30771ddabc7503e02c4c3.r2.cloudflarestorage.com" 
+# 统一后台的 D1，PDF 数据从这里读（只读）
+[[d1_databases]]
+binding = "DB"
+database_name = "capstone"
+database_id = "b9037d6c-b287-4086-b779-794c916a0830"

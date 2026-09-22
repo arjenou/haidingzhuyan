@@ -20,6 +20,7 @@ import {
   invalidateCache
 } from './posterMetadata';
 import { autoRefactorDatabase } from './autoRefactorDatabase';
+import { registerPublicPdfRoutes } from './publicPdfs';
 import { 
   exportCategorizedDataToKV, 
   getExportedCategoryData, 
@@ -47,6 +48,9 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// 公开 PDF 只读接口（数据在统一后台的 D1「capstone」库里）
+registerPublicPdfRoutes(app, 'haidingzhuyan');
 
 // 上传海报到R2
 app.post('/api/upload-poster', async (c) => {

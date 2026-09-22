@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(mkdir -p /Users/wang.yunjie/Desktop/项目/capstone-admin/web/src)",
+      "Bash(cp /Users/wang.yunjie/Desktop/项目/qide/frontend/tailwind.config.js /Users/wang.yunjie/Desktop/项目/qide/frontend/postcss.config.js .)",
+      "Bash(npm run *)",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(git -c user.name=arjenou -c user.email=arjenou@users.noreply.github.com commit -q --amend --no-edit)",
+      "Bash(python3 -c \"import json,sys;print\\('  标题重叠数:',json.load\\(sys.stdin\\)[0]['results'][0]['n']\\)\")",
+      "Bash(echo \"tsc exit=$?\")",
+      "Bash(curl -s -X DELETE https://capstone-admin-api.wangyunjie1101.workers.dev/api/qide/pdfs/__CMDSUB_OUTPUT__ -H 'Authorization: Bearer __CMDSUB_OUTPUT__')",
+      "Bash(curl -s -X DELETE https://capstone-admin-api.wangyunjie1101.workers.dev/api/xindongfang/pdfs/__CMDSUB_OUTPUT__ -H 'Authorization: Bearer __CMDSUB_OUTPUT__')",
+      "Bash(curl -s --max-time 20 https://capstone-admin-api.wangyunjie1101.workers.dev/api/stats -H 'Authorization: Bearer __CMDSUB_OUTPUT__')",
+      "Bash(chmod +x /Users/wang.yunjie/Desktop/项目/capstone-admin/scripts/sync-shared.sh)",
+      "Bash(/Users/wang.yunjie/Desktop/项目/capstone-admin/scripts/sync-shared.sh)",
+      "Bash(python3 -)",
+      "Bash(cat)",
+      "Bash(curl -s --max-time 30 https://api.haiwaizaiyan.com/api/categories)",
+      "Bash(curl -s --max-time 40 https://api.haiwaizaiyan.com/api/categories)"
+    ],
+    "additionalDirectories": [
+      "/Users/wang.yunjie/Desktop/项目/capstone-admin/web",
+      "/Users/wang.yunjie/Desktop/项目/capstone-admin/web/src",
+      "/Users/wang.yunjie/Desktop/项目/capstone-admin",
+      "/Users/wang.yunjie/Desktop/项目/capstone-admin/shared"
+    ]
+  }
+}

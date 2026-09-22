@@ -8,6 +8,7 @@ export const config = {
 
 // 环境类型定义，让TypeScript能识别Cloudflare环境变量
 export interface Env {
+  DB: D1Database;            // 统一后台的 D1「capstone」，PDF 数据在这里
   R2_BUCKET: R2Bucket;
   R2_ENDPOINT: string;
   POSTER_METADATA: KVNamespace;
