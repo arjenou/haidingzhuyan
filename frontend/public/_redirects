@@ -1,0 +1,8 @@
+# 本站不再提供后台，/admin 跳到统一管理后台。
+# 用 302 而不是 301：后台地址以后可能换（比如绑自定义域名），
+# 301 会被浏览器长期缓存，改起来很麻烦。
+#
+# 三条都要有：/admin/* 匹配不到尾斜杠后为空的 /admin/，得单列一条。
+/admin      https://capstone-admin.pages.dev  302
+/admin/     https://capstone-admin.pages.dev  302
+/admin/*    https://capstone-admin.pages.dev  302
