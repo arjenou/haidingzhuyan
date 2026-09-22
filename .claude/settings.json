@@ -28,7 +28,9 @@
       "Bash(echo \"tsc=$?\")",
       "Bash(curl -s -o /dev/null -w \"后台界面 https://capstone-admin.pages.dev  → HTTP %{http_code}\\\\n\" --max-time 30 https://capstone-admin.pages.dev/)",
       "Bash(curl -s -o /dev/null -w \"管理 API  → HTTP %{http_code} \\(401=正常，未带 token\\)\\\\n\" --max-time 30 https://capstone-admin-api.wangyunjie1101.workers.dev/api/stats)",
-      "Bash(python3)"
+      "Bash(python3)",
+      "Bash(npx --yes wrangler@4.136.1 pages --help)",
+      "Bash(npx --yes wrangler@4.136.1 pages domain --help)"
     ],
     "additionalDirectories": [
       "/Users/wang.yunjie/Desktop/项目/capstone-admin/web",
