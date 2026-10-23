@@ -30,6 +30,138 @@ import {
   generateStaticJSONData 
 } from './exportCategorizedData';
 
+function imageContentType(key: string, fromObject?: string): string {
+  if (fromObject && fromObject.startsWith('image/')) return fromObject;
+  const ext = key.split('.').pop()?.toLowerCase().split('?')[0];
+  switch (ext) {
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    default:
+      return 'image/jpeg';
+  }
+}
+
+function inlineImageDisposition(key: string): string {
+  const rawName = (key.split('/').pop() || 'poster.jpg').replace(/[\r\n"]/g, '');
+  const asciiName = rawName.replace(/[^\x20-\x7E]/g, '_') || 'poster.jpg';
+  return `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(rawName)}`;
+}
+
+/** 列表只请求这一种宽度，避免同图多种尺寸把缓存打散。 */
+const THUMB_WIDTH = 360;
+const THUMB_MAX_BYTES = 1_200_000;
+/** null：还没探测；false：这台隔离实例确认不能做图片缩放。 */
+let thumbResizeEnabled: boolean | null = null;
+
+function wantsThumb(url: URL): boolean {
+  return url.searchParams.get('w') === String(THUMB_WIDTH) && url.searchParams.get('raw') !== '1';
+}
+
+function thumbRedirect(url: URL): Response {
+  const target = new URL(url.href);
+  target.searchParams.delete('w');
+  target.searchParams.delete('raw');
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: target.toString(),
+      'Cache-Control': 'public, max-age=86400',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
+}
+
+/**
+ * 列表缩略图走 Cloudflare 图片缩放。缩放不可用时返回 null，调用方改发原图。
+ * 缩放服务回源时带 raw=1，避免再进一次缩放。
+ */
+async function tryThumbResize(requestUrl: URL, accept: string): Promise<Response | null> {
+  const rawUrl = new URL(requestUrl.href);
+  rawUrl.searchParams.delete('w');
+  rawUrl.searchParams.set('raw', '1');
+
+  const cacheKey = new Request(requestUrl.toString(), { method: 'GET' });
+  try {
+    const cached = await caches.default.match(cacheKey);
+    if (cached) {
+      thumbResizeEnabled = true;
+      return cached;
+    }
+  } catch {
+    // 缓存读失败时继续现算
+  }
+
+  let resized: Response;
+  try {
+    resized = await fetch(rawUrl.toString(), {
+      headers: {
+        Accept: accept || 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+      },
+      cf: {
+        image: {
+          width: THUMB_WIDTH,
+          quality: 72,
+          fit: 'scale-down',
+          format: 'webp',
+        },
+      },
+    });
+  } catch {
+    return null;
+  }
+
+  const flag = resized.headers.get('cf-resized') || '';
+  const contentType = resized.headers.get('content-type') || '';
+  const length = Number(resized.headers.get('content-length') || 0);
+  const featureOff = /err=9401\b/.test(flag) || /err=9403\b/.test(flag);
+  const resizeError = /err=(?!0\b)\d+/.test(flag);
+  const confirmed = /err=0\b/.test(flag) || /internal=ok/.test(flag);
+
+  if (
+    !resized.ok
+    || featureOff
+    || resizeError
+    || !confirmed
+    || !contentType.startsWith('image/')
+    || length > THUMB_MAX_BYTES
+  ) {
+    if (featureOff) thumbResizeEnabled = false;
+    await resized.body?.cancel();
+    return null;
+  }
+
+  thumbResizeEnabled = true;
+  const headers = new Headers();
+  headers.set('Content-Type', contentType);
+  if (length > 0) headers.set('Content-Length', String(length));
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('Access-Control-Allow-Origin', '*');
+  const response = new Response(resized.body, { status: 200, headers });
+  try {
+    await caches.default.put(cacheKey, response.clone());
+  } catch {
+    // 缓存写失败时仍然把缩略图返回给浏览器
+  }
+  return response;
+}
+
+function parseAudience(raw: string): string[] {
+  try {
+    const value = JSON.parse(raw);
+    return Array.isArray(value) ? value.map((item) => String(item)) : [];
+  } catch {
+    return [];
+  }
+}
+
 // 创建Hono应用
 const app = new Hono();
 
@@ -53,9 +185,68 @@ app.use('*', cors({
 // 写操作与 /api/admin/* 需要统一后台签发的 token；公开 GET 不受影响
 app.use('*', requireAdmin);
 
+// 列表 JSON 变化不频繁，浏览器短时间内重复打开可以少打一次数据库。
+app.use('/api/exported-data/*', async (c, next) => {
+  await next();
+  if (c.req.method === 'GET' && c.res.status === 200 && !c.res.headers.has('Cache-Control')) {
+    c.header('Cache-Control', 'public, max-age=120, stale-while-revalidate=86400');
+  }
+});
+
 // 海报读取改走 D1（注册在下面的 KV 路由之前，Hono 首个匹配生效）。
 // 要回退，把这一行注释掉即可，原 KV 代码路径仍然完整。
 registerPosterReadRoutes(app, 'haidingzhuyan');
+
+// 按关键词查，不再把全部分类索引下载到手机上再过滤。
+app.get('/api/search', async (c) => {
+  const q = (c.req.query('q') || '').trim().slice(0, 80);
+  if (!q) {
+    return c.json({ posters: [] }, 200, { 'Cache-Control': 'public, max-age=60' });
+  }
+
+  const env = (c.env as unknown) as Env;
+  const { results } = await env.DB.prepare(
+    `SELECT id, title, category, target_audience, image_key
+     FROM posters
+     WHERE site = ?
+       AND (
+         instr(lower(title), lower(?)) > 0
+         OR instr(lower(description), lower(?)) > 0
+         OR instr(lower(target_audience), lower(?)) > 0
+       )
+     ORDER BY updated_at DESC, id DESC
+     LIMIT 100`
+  )
+    .bind('haidingzhuyan', q, q, q)
+    .all<{
+      id: string;
+      title: string;
+      category: string;
+      target_audience: string;
+      image_key: string | null;
+    }>();
+
+  const origin = new URL(c.req.url).origin;
+  return c.json(
+    {
+      posters: (results ?? []).map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: '',
+        category: row.category,
+        targetAudience: parseAudience(row.target_audience),
+        imageKey: row.image_key ?? '',
+        imageUrl: row.image_key
+          ? `${origin}/api/get-poster-url/${encodeURIComponent(row.image_key)}`
+          : '',
+        createdAt: 0,
+        updatedAt: 0,
+      })),
+    },
+    200,
+    { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=600' }
+  );
+});
 
 // 上传海报到R2
 app.post('/api/upload-poster', async (c) => {
@@ -103,7 +294,18 @@ app.post('/api/upload-poster', async (c) => {
 app.get('/api/get-poster-url/:key', async (c) => {
   try {
     const key = c.req.param('key');
-    console.log('获取图片，key:', key);
+    const requestUrl = new URL(c.req.url);
+    const thumb = wantsThumb(requestUrl);
+
+    if (thumb && thumbResizeEnabled === false) {
+      return thumbRedirect(requestUrl);
+    }
+
+    if (thumb) {
+      const resized = await tryThumbResize(requestUrl, c.req.header('Accept') || '');
+      if (resized) return resized;
+      if (thumbResizeEnabled === false) return thumbRedirect(requestUrl);
+    }
     
     // 从URL参数解码
     let decodedKey = key;
@@ -117,33 +319,28 @@ app.get('/api/get-poster-url/:key', async (c) => {
       // 如果解码失败，继续使用原始key
     }
     
-    // 检查对象是否存在
-    let object = await ((c.env as unknown) as Env).R2_BUCKET.head(decodedKey);
-    
-    // 如果找不到，尝试使用原始key
-    if (!object && decodedKey !== key) {
-      object = await ((c.env as unknown) as Env).R2_BUCKET.head(key);
+    const env = (c.env as unknown) as Env;
+    let data = await env.R2_BUCKET.get(decodedKey);
+    let finalKey = decodedKey;
+    if (!data && decodedKey !== key) {
+      data = await env.R2_BUCKET.get(key);
+      finalKey = key;
     }
     
-    if (!object) {
+    if (!data) {
       console.error('找不到对象:', decodedKey, key);
       return c.json({ error: '找不到指定的海报' }, 404);
     }
     
-    // 选择正确的key
-    const finalKey = object ? (decodedKey !== key && !object ? key : decodedKey) : key;
-    
-    // 获取对象
-    const data = await ((c.env as unknown) as Env).R2_BUCKET.get(finalKey);
-    if (!data) {
-      console.error('无法获取对象:', finalKey);
-      return c.json({ error: '无法获取海报数据' }, 404);
-    }
-    
-    // 设置正确的Content-Type
+    // 必须是浏览器能直接识别的图片响应。类型不对或没有文件名时，
+    // 手机长按保存会退化为截取当前屏幕，而不是下载海报原图。
     const headers = new Headers();
-    headers.set('Content-Type', data.httpMetadata?.contentType || 'image/jpeg');
-    headers.set('Cache-Control', 'public, max-age=31536000');
+    headers.set('Content-Type', imageContentType(finalKey, data.httpMetadata?.contentType));
+    headers.set('Content-Disposition', inlineImageDisposition(finalKey));
+    headers.set('X-Content-Type-Options', 'nosniff');
+    headers.set('Content-Length', String(data.size));
+    // 缩略图缩放失败时先把原图顶上，但不要缓存一年，否则以后也拿不到小图。
+    headers.set('Cache-Control', thumb ? 'public, max-age=300' : 'public, max-age=31536000');
     headers.set('Access-Control-Allow-Origin', '*');
     
     // 直接返回文件内容
