@@ -35,12 +35,26 @@ export interface PosterMetadataPage {
 
 /** 列表缩略图宽度。必须和后端 THUMB_WIDTH 一致，才会命中同一种缓存。 */
 export const POSTER_THUMB_WIDTH = 360;
+export const POSTER_DISPLAY_WIDTH = 1200;
 
 export function posterThumbUrl(imageUrl: string): string {
   if (!imageUrl) return '';
   try {
     const url = new URL(imageUrl);
     url.searchParams.set('w', String(POSTER_THUMB_WIDTH));
+    return url.toString();
+  } catch {
+    return imageUrl;
+  }
+}
+
+/** 查看与长按保存使用同一张清晰压缩图，避免下载完整原图。 */
+export function posterDisplayUrl(imageUrl: string): string {
+  if (!imageUrl) return '';
+  try {
+    const url = new URL(imageUrl);
+    url.searchParams.delete('raw');
+    url.searchParams.set('w', String(POSTER_DISPLAY_WIDTH));
     return url.toString();
   } catch {
     return imageUrl;

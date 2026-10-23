@@ -54,17 +54,22 @@ function inlineImageDisposition(key: string): string {
   return `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(rawName)}`;
 }
 
-/** 列表只请求这一种宽度，避免同图多种尺寸把缓存打散。 */
+/** 列表与查看/保存各用一种固定尺寸，避免同图的缓存被打散。 */
 const THUMB_WIDTH = 360;
-const THUMB_MAX_BYTES = 1_200_000;
+const DISPLAY_WIDTH = 1200;
+const OPTIMIZED_MAX_BYTES = 1_200_000;
 /** null：还没探测；false：这台隔离实例确认不能做图片缩放。 */
-let thumbResizeEnabled: boolean | null = null;
+let imageResizeEnabled: boolean | null = null;
 
-function wantsThumb(url: URL): boolean {
-  return url.searchParams.get('w') === String(THUMB_WIDTH) && url.searchParams.get('raw') !== '1';
+function optimizedWidth(url: URL): number | null {
+  if (url.searchParams.get('raw') === '1') return null;
+  const width = url.searchParams.get('w');
+  if (width === String(THUMB_WIDTH)) return THUMB_WIDTH;
+  if (width === String(DISPLAY_WIDTH)) return DISPLAY_WIDTH;
+  return null;
 }
 
-function thumbRedirect(url: URL): Response {
+function originalRedirect(url: URL): Response {
   const target = new URL(url.href);
   target.searchParams.delete('w');
   target.searchParams.delete('raw');
@@ -79,10 +84,10 @@ function thumbRedirect(url: URL): Response {
 }
 
 /**
- * 列表缩略图走 Cloudflare 图片缩放。缩放不可用时返回 null，调用方改发原图。
+ * 手机查看、保存和列表都使用压缩图。缩放不可用时返回 null，调用方改发原图。
  * 缩放服务回源时带 raw=1，避免再进一次缩放。
  */
-async function tryThumbResize(requestUrl: URL, accept: string): Promise<Response | null> {
+async function tryImageResize(requestUrl: URL, accept: string, width: number, key: string, ctx: Pick<ExecutionContext, 'waitUntil'>): Promise<Response | null> {
   const rawUrl = new URL(requestUrl.href);
   rawUrl.searchParams.delete('w');
   rawUrl.searchParams.set('raw', '1');
@@ -91,8 +96,9 @@ async function tryThumbResize(requestUrl: URL, accept: string): Promise<Response
   try {
     const cached = await caches.default.match(cacheKey);
     if (cached) {
-      thumbResizeEnabled = true;
-      return cached;
+      imageResizeEnabled = true;
+      // Cache API 返回只读响应头，Hono 的 CORS 中间件需要可修改的响应。
+      return new Response(cached.body, cached);
     }
   } catch {
     // 缓存读失败时继续现算
@@ -106,8 +112,8 @@ async function tryThumbResize(requestUrl: URL, accept: string): Promise<Response
       },
       cf: {
         image: {
-          width: THUMB_WIDTH,
-          quality: 72,
+          width,
+          quality: width === THUMB_WIDTH ? 72 : 78,
           fit: 'scale-down',
           format: 'webp',
         },
@@ -130,26 +136,24 @@ async function tryThumbResize(requestUrl: URL, accept: string): Promise<Response
     || resizeError
     || !confirmed
     || !contentType.startsWith('image/')
-    || length > THUMB_MAX_BYTES
+    || length > OPTIMIZED_MAX_BYTES
   ) {
-    if (featureOff) thumbResizeEnabled = false;
+    if (featureOff) imageResizeEnabled = false;
     await resized.body?.cancel();
     return null;
   }
 
-  thumbResizeEnabled = true;
+  imageResizeEnabled = true;
   const headers = new Headers();
   headers.set('Content-Type', contentType);
+  headers.set('Content-Disposition', inlineImageDisposition(key.replace(/\.[^/.]+$/, '') + '.webp'));
   if (length > 0) headers.set('Content-Length', String(length));
   headers.set('Cache-Control', 'public, max-age=31536000, immutable');
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Access-Control-Allow-Origin', '*');
   const response = new Response(resized.body, { status: 200, headers });
-  try {
-    await caches.default.put(cacheKey, response.clone());
-  } catch {
-    // 缓存写失败时仍然把缩略图返回给浏览器
-  }
+  // 缓存写入放到后台，不让用户等整张图片写入完成才开始接收。
+  ctx.waitUntil(caches.default.put(cacheKey, response.clone()).catch(() => {}));
   return response;
 }
 
@@ -295,16 +299,16 @@ app.get('/api/get-poster-url/:key', async (c) => {
   try {
     const key = c.req.param('key');
     const requestUrl = new URL(c.req.url);
-    const thumb = wantsThumb(requestUrl);
+    const width = optimizedWidth(requestUrl);
 
-    if (thumb && thumbResizeEnabled === false) {
-      return thumbRedirect(requestUrl);
+    if (width && imageResizeEnabled === false) {
+      return originalRedirect(requestUrl);
     }
 
-    if (thumb) {
-      const resized = await tryThumbResize(requestUrl, c.req.header('Accept') || '');
+    if (width) {
+      const resized = await tryImageResize(requestUrl, c.req.header('Accept') || '', width, key, c.executionCtx);
       if (resized) return resized;
-      if (thumbResizeEnabled === false) return thumbRedirect(requestUrl);
+      if (imageResizeEnabled === false) return originalRedirect(requestUrl);
     }
     
     // 从URL参数解码
@@ -339,8 +343,8 @@ app.get('/api/get-poster-url/:key', async (c) => {
     headers.set('Content-Disposition', inlineImageDisposition(finalKey));
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('Content-Length', String(data.size));
-    // 缩略图缩放失败时先把原图顶上，但不要缓存一年，否则以后也拿不到小图。
-    headers.set('Cache-Control', thumb ? 'public, max-age=300' : 'public, max-age=31536000');
+    // 压缩失败时先把原图顶上，短缓存以便之后恢复小图。
+    headers.set('Cache-Control', width ? 'public, max-age=300' : 'public, max-age=31536000');
     headers.set('Access-Control-Allow-Origin', '*');
     
     // 直接返回文件内容
@@ -1004,7 +1008,7 @@ app.delete('/api/admin/clear-all-metadata', async (c) => {
     await Promise.all(deletePromises);
     
     // 处理可能有多页的情况
-    let cursor = listResult.cursor;
+    let cursor = listResult.list_complete ? undefined : listResult.cursor;
     while (cursor) {
       const nextBatch = await env.POSTER_METADATA.list({ cursor });
       const nextDeletePromises: Promise<void>[] = [];
@@ -1015,7 +1019,7 @@ app.delete('/api/admin/clear-all-metadata', async (c) => {
       }
       
       await Promise.all(nextDeletePromises);
-      cursor = nextBatch.cursor;
+      cursor = nextBatch.list_complete ? undefined : nextBatch.cursor;
     }
     
     // 清除内存缓存
@@ -1054,7 +1058,7 @@ app.delete('/api/admin/clear-all-posters', async (c) => {
     await Promise.all(deletePromises);
     
     // 处理可能有多页的情况
-    let cursor = listResult.cursor;
+    let cursor = listResult.truncated ? listResult.cursor : undefined;
     while (cursor) {
       const nextBatch = await env.R2_BUCKET.list({ cursor });
       const nextDeletePromises: Promise<void>[] = [];
@@ -1065,7 +1069,7 @@ app.delete('/api/admin/clear-all-posters', async (c) => {
       }
       
       await Promise.all(nextDeletePromises);
-      cursor = nextBatch.cursor;
+      cursor = nextBatch.truncated ? nextBatch.cursor : undefined;
     }
     
     // 清除内存缓存
@@ -1103,7 +1107,7 @@ app.delete('/api/admin/clear-all-data', async (c) => {
     
     await Promise.all(kvDeletePromises);
     
-    let kvCursor = kvListResult.cursor;
+    let kvCursor = kvListResult.list_complete ? undefined : kvListResult.cursor;
     while (kvCursor) {
       const nextBatch = await env.POSTER_METADATA.list({ cursor: kvCursor });
       const nextDeletePromises: Promise<void>[] = [];
@@ -1114,7 +1118,7 @@ app.delete('/api/admin/clear-all-data', async (c) => {
       }
       
       await Promise.all(nextDeletePromises);
-      kvCursor = nextBatch.cursor;
+      kvCursor = nextBatch.list_complete ? undefined : nextBatch.cursor;
     }
     
     // 删除所有R2数据
@@ -1128,7 +1132,7 @@ app.delete('/api/admin/clear-all-data', async (c) => {
     
     await Promise.all(r2DeletePromises);
     
-    let r2Cursor = r2ListResult.cursor;
+    let r2Cursor = r2ListResult.truncated ? r2ListResult.cursor : undefined;
     while (r2Cursor) {
       const nextBatch = await env.R2_BUCKET.list({ cursor: r2Cursor });
       const nextDeletePromises: Promise<void>[] = [];
@@ -1139,7 +1143,7 @@ app.delete('/api/admin/clear-all-data', async (c) => {
       }
       
       await Promise.all(nextDeletePromises);
-      r2Cursor = nextBatch.cursor;
+      r2Cursor = nextBatch.truncated ? nextBatch.cursor : undefined;
     }
     
     // 清除内存缓存
@@ -1161,4 +1165,4 @@ app.delete('/api/admin/clear-all-data', async (c) => {
 });
 
 // 导出Worker处理函数
-export default app; 
+export default app;

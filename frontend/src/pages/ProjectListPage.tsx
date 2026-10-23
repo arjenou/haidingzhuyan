@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getPosterMetadataByCategory, posterThumbUrl, searchPosters } from '../services/posterMetadataService';
+import { getPosterMetadataByCategory, posterThumbUrl, posterDisplayUrl, searchPosters } from '../services/posterMetadataService';
 import type { PosterMetadata } from '../services/posterMetadataService';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -17,7 +17,7 @@ type SearchIndexItem = Omit<PosterMetadata, 'createdAt' | 'updatedAt'>;
 
 /**
  * 列表只加载 360px 缩略图。按钮盖住图片，避免手机长按小图时存成屏幕截图。
- * 原图在「查看」里加载完成后才能保存。
+ * 清晰图在「查看」里加载完成后才能保存。
  */
 const PosterThumb: React.FC<{
   imageUrl: string;
@@ -25,18 +25,27 @@ const PosterThumb: React.FC<{
   onOpen: () => void;
 }> = ({ imageUrl, title, onOpen }) => {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [useOriginal, setUseOriginal] = useState(false);
+  const thumbnailUrl = posterThumbUrl(imageUrl);
 
   return (
     <div className="relative overflow-hidden rounded-lg shadow-md w-full aspect-[3/4] bg-gray-100">
       {imageUrl && status !== 'error' && (
         <img
-          src={imageUrl}
+          src={useOriginal ? imageUrl : thumbnailUrl}
           alt=""
           loading="lazy"
           decoding="async"
           draggable={false}
           onLoad={() => setStatus('ready')}
-          onError={() => setStatus('error')}
+          onError={() => {
+            if (!useOriginal && thumbnailUrl !== imageUrl) {
+              setUseOriginal(true);
+              setStatus('loading');
+            } else {
+              setStatus('error');
+            }
+          }}
           className="w-full h-full object-contain bg-white pointer-events-none"
           style={{
             WebkitTouchCallout: 'none',
@@ -104,7 +113,11 @@ const ProjectListPage: React.FC = () => {
   const [posterStatus, setPosterStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [canSavePoster, setCanSavePoster] = useState(false);
   const [posterLoadAttempt, setPosterLoadAttempt] = useState(0);
+  const [useOriginalPoster, setUseOriginalPoster] = useState(false);
   const posterImgRef = useRef<HTMLImageElement>(null);
+  const posterImageUrl = currentPoster
+    ? useOriginalPoster ? currentPoster.imageUrl : posterDisplayUrl(currentPoster.imageUrl)
+    : '';
 
   // 无限滚动配置
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -230,6 +243,7 @@ const ProjectListPage: React.FC = () => {
 
   const handleShowPoster = (poster: PosterMetadata | SearchIndexItem) => {
     setCurrentPoster(poster);
+    setUseOriginalPoster(false);
     setPosterStatus(poster.imageUrl ? 'loading' : 'error');
     setCanSavePoster(false);
     setShowPoster(true);
@@ -252,7 +266,7 @@ const ProjectListPage: React.FC = () => {
 
   useEffect(() => {
     if (!showPoster) return;
-    const imageUrl = currentPoster?.imageUrl ?? '';
+    const imageUrl = posterImageUrl;
     if (!imageUrl) return;
 
     let cancelled = false;
@@ -273,7 +287,12 @@ const ProjectListPage: React.FC = () => {
 
     preload.onload = finish;
     preload.onerror = () => {
-      if (!cancelled) setPosterStatus('error');
+      if (cancelled) return;
+      if (currentPoster && imageUrl !== currentPoster.imageUrl) {
+        setUseOriginalPoster(true);
+      } else {
+        setPosterStatus('error');
+      }
     };
     preload.src = imageUrl;
     if (preload.complete) finish();
@@ -283,19 +302,19 @@ const ProjectListPage: React.FC = () => {
       preload.onload = null;
       preload.onerror = null;
     };
-  }, [showPoster, currentPoster?.imageUrl, posterLoadAttempt]);
+  }, [showPoster, currentPoster, posterImageUrl, posterLoadAttempt]);
 
   useEffect(() => {
     if (posterStatus !== 'ready') return;
     const el = posterImgRef.current;
     if (el?.complete && el.naturalWidth > 0) setCanSavePoster(true);
-  }, [posterStatus, currentPoster?.imageUrl]);
+  }, [posterStatus, posterImageUrl]);
 
   const saveHint = posterStatus === 'error'
     ? '海报加载失败'
     : posterStatus !== 'ready' || !canSavePoster
       ? '海报加载中，完成前请不要保存'
-      : '长按海报保存原图';
+      : '长按海报保存图片';
 
   const isSearching = searchState !== 'idle';
   const displayedItems = isSearching ? searchResults : posters;
@@ -370,7 +389,8 @@ const ProjectListPage: React.FC = () => {
                   {/* 海报图片 - 固定宽度 */}
                   <div className="min-w-[120px] w-[120px]">
                     <PosterThumb
-                      imageUrl={posterThumbUrl(poster.imageUrl)}
+                      key={poster.imageUrl}
+                      imageUrl={poster.imageUrl}
                       title={poster.title}
                       onOpen={() => handleShowPoster(poster)}
                     />
@@ -456,14 +476,21 @@ const ProjectListPage: React.FC = () => {
           <div className="h-full overflow-y-auto overscroll-contain px-0 pt-14 pb-28" onClick={handleBackdropClick}>
             {posterStatus === 'loading' && (
               <div
-                className="min-h-full flex flex-col items-center justify-center gap-3 px-6"
+                className="relative min-h-full flex flex-col items-center justify-center gap-3 px-6"
                 style={{ WebkitTouchCallout: 'none' }}
               >
-                <svg className="animate-spin h-8 w-8 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <img
+                  src={posterThumbUrl(currentPoster.imageUrl)}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="absolute top-0 inset-x-0 w-full h-auto opacity-40 pointer-events-none"
+                />
+                <svg className="relative animate-spin h-8 w-8 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <p className="text-sm text-white/80">海报加载中</p>
+                <p className="relative text-sm text-white/80">海报加载中</p>
               </div>
             )}
 
@@ -486,13 +513,17 @@ const ProjectListPage: React.FC = () => {
             {posterStatus === 'ready' && (
               <img
                 ref={posterImgRef}
-                src={currentPoster.imageUrl}
+                src={posterImageUrl}
                 alt={currentPoster.title}
                 className="block w-full h-auto"
                 style={{ WebkitTouchCallout: canSavePoster ? 'default' : 'none' }}
                 onLoad={() => setCanSavePoster(true)}
                 onError={() => {
-                  setPosterStatus('error');
+                  if (posterImageUrl !== currentPoster.imageUrl) {
+                    setUseOriginalPoster(true);
+                  } else {
+                    setPosterStatus('error');
+                  }
                   setCanSavePoster(false);
                 }}
                 onClick={(e) => e.stopPropagation()}
@@ -513,4 +544,4 @@ const ProjectListPage: React.FC = () => {
   );
 };
 
-export default ProjectListPage; 
+export default ProjectListPage;
